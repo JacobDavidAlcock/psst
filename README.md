@@ -57,10 +57,46 @@ psst ~/Downloads
 ## What you can do in the browser
 
 - **Upload:** drag files or whole folders onto the page, or click **Upload**. To upload a screenshot, press Ctrl+V. If a file with the same name already exists, psst keeps both: a second `photo.jpg` arrives as `photo (1).jpg`.
-- **Preview:** click a file to see it. Images, text and code, video, audio and PDFs open in the page. In image previews, use the arrow keys or swipe to move between photos.
+- **Preview:** click a file to see it. Images, video, audio and PDFs open in the page. In image previews, use the arrow keys or swipe to move between photos.
+- **Read text and code:** code opens with line numbers and colours. Markdown opens formatted, CSV files open as a table, and minified JSON opens indented. Use the buttons at the top to switch back to the raw text.
 - **Download:** click the download arrow next to a file. To get a whole folder as one file, click **Zip**.
 - **Share text:** open **Clipboard**, paste some text and click **Share**. Every device with the page open sees it within 2 seconds and can copy it.
 - **Open on your phone:** click **Connect** to show a QR code for the folder you're looking at.
+
+## Manage files
+
+To select a file, click its checkbox. To select a run of files, click the first checkbox, then Shift-click the last. A bar appears at the bottom of the page with these actions:
+
+| Action | What it does |
+|---|---|
+| **Download** | Downloads one file as it is, or several files as one `.zip`. |
+| **Move** | Opens a folder picker. Pick a folder and click **Move here**. |
+| **Rename** | Renames the file. Only shows when one file is selected. |
+| **Delete** | Deletes the files. Click **Undo** in the message that appears to bring them back. |
+
+Keyboard shortcuts: Ctrl+A selects everything, Delete deletes the selection, F2 renames, and Esc clears the selection.
+
+Deleted files go to a hidden `.psst-trash` folder inside the shared folder. psst empties anything older than 7 days when it starts or when you delete something.
+
+## Resume a stopped upload
+
+If your connection drops during an upload, psst keeps trying for a few minutes and carries on from where it stopped. You don't need to do anything.
+
+If you close the page or the upload gives up, pick the same file again and upload it to the same folder. psst finds the part it already has and sends only the rest.
+
+psst deletes parts of uploads that haven't been touched for 2 days.
+
+## Browse big photo folders
+
+In grid view, psst shows small previews instead of full photos, so a folder of phone pictures opens quickly. Each preview is about 10 KB instead of several MB.
+
+Without anything extra installed, previews work for JPEG photos from phones and cameras, because those photos carry a small preview inside them. If you want sharper previews for every image type, install Pillow on the computer running psst:
+
+```sh
+pip install pillow
+```
+
+When psst finds Pillow, the startup message says `Pillow thumbnails`.
 
 ## Use psst from a terminal
 
@@ -106,7 +142,7 @@ curl -o photos.zip "http://localhost:8000/photos/?zip"
 | `directory` | Folder to share. Default: the current folder. |
 | `-p PORT`, `--port PORT` | Use this port only. Default: 8000, or the next free port up to 8019. |
 | `-b ADDRESS`, `--bind ADDRESS` | Listen on one network address only. Default: `0.0.0.0`, which means every address. |
-| `-r`, `--read-only` | Let people browse and download, but not upload or create folders. |
+| `-r`, `--read-only` | Let people browse and download, but not upload, create folders, move, rename or delete. |
 | `--password PASSWORD` | Ask for this password before showing anything. Any username works. You can set `PSST_PASSWORD` instead. |
 | `--no-qr` | Don't print the QR code. |
 
@@ -120,4 +156,4 @@ python psst.py ~/Music --read-only
 
 - psst is for networks you trust, like your home Wi-Fi. It uses plain HTTP, so `--password` keeps out casual visitors but doesn't encrypt anything.
 - The shared clipboard lives in memory. It empties when psst stops.
-- You can't delete or rename files from the web page yet.
+- Anyone who can open the page can move, rename and delete files. If you don't want that, start psst with `--read-only`.
