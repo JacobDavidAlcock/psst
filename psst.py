@@ -1470,7 +1470,7 @@ header{position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px s
 
 main{max-width:1200px;margin:0 auto;padding:12px 16px 120px}
 .rows{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
-.row{display:grid;grid-template-columns:28px 1fr 90px 130px 40px;align-items:center;gap:10px;padding:0 10px 0 14px;height:44px;border-top:1px solid var(--line);cursor:pointer}
+.row{display:grid;grid-template-columns:20px 24px 1fr 90px 130px 40px;align-items:center;gap:10px;padding:0 10px 0 12px;height:44px;border-top:1px solid var(--line);cursor:pointer}
 .row:first-child{border-top:0}
 .row:hover{background:var(--hover)}
 .row.head{height:34px;cursor:default;color:var(--muted);font-size:12px;background:transparent}
@@ -1489,7 +1489,7 @@ main{max-width:1200px;margin:0 auto;padding:12px 16px 120px}
 @keyframes flash{0%,30%{background:color-mix(in srgb,var(--accent) 18%,transparent)}100%{background:transparent}}
 
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;cursor:pointer;display:flex;flex-direction:column}
+.card{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;cursor:pointer;display:flex;flex-direction:column}
 .card:hover{border-color:var(--muted)}
 .card .thumb{aspect-ratio:1;display:grid;place-items:center;background:var(--hover);overflow:hidden}
 .card .thumb img{width:100%;height:100%;object-fit:cover;display:block}
@@ -1545,12 +1545,10 @@ main{max-width:1200px;margin:0 auto;padding:12px 16px 120px}
 .viewer .vt .t small{color:#999;font-weight:400;margin-left:8px}
 .viewer .btn{background:rgba(255,255,255,.08);border-color:transparent;color:#eee}
 .viewer .btn:hover{background:rgba(255,255,255,.16)}
-.viewer .vb{flex:1;min-height:0;display:grid;place-items:center;position:relative;padding:0 12px 12px}
+.viewer .vb{flex:1;min-height:0;display:grid;grid-template:minmax(0,1fr)/minmax(0,1fr);place-items:center;position:relative;padding:0 12px 12px}
 .viewer .vb>img,.viewer .vb>video{max-width:100%;max-height:100%;object-fit:contain;display:block}
 .viewer .vb>iframe{width:100%;height:100%;border:0;background:#fff;border-radius:6px}
 .viewer .vb>audio{width:min(600px,100%)}
-.viewer .txt{width:min(1000px,100%);height:100%;overflow:auto;background:#1b1b1b;border:1px solid #2c2c2c;border-radius:8px;padding:14px 16px;margin:0;font:13px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre;tab-size:4;color:#ddd}
-.viewer .txt.wrap{white-space:pre-wrap;word-break:break-word}
 .viewer .note{color:#aaa;text-align:center}
 .viewer .note svg.i{width:48px;height:48px;stroke-width:1.2;margin-bottom:8px}
 .viewer .nav{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:64px;border:0;border-radius:8px;background:rgba(255,255,255,.06);color:#eee;cursor:pointer;display:grid;place-items:center}
@@ -1566,8 +1564,73 @@ main{max-width:1200px;margin:0 auto;padding:12px 16px 120px}
 .qr img{width:220px;height:220px;border-radius:8px;background:#fff}
 .qr code{font-size:13px;user-select:all;word-break:break-all;text-align:center}
 
-.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%) translateY(20px);z-index:80;background:var(--text);color:var(--bg);padding:9px 16px;border-radius:8px;opacity:0;pointer-events:none;transition:all .2s;font-size:13px;max-width:calc(100vw - 32px)}
-.toast.on{opacity:1;transform:translateX(-50%)}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%) translateY(20px);z-index:80;background:var(--text);color:var(--bg);padding:9px 16px;border-radius:8px;opacity:0;pointer-events:none;transition:all .2s;font-size:13px;max-width:calc(100vw - 32px);display:flex;align-items:center;gap:14px}
+.toast.on{opacity:1;transform:translateX(-50%);pointer-events:auto}
+.toast button{background:none;border:0;color:var(--accent);font-weight:700;cursor:pointer;padding:0}
+
+/* selection */
+.ck{width:18px;height:18px;border:1.5px solid var(--muted);border-radius:5px;display:grid;place-items:center;cursor:pointer;opacity:0;background:var(--panel);transition:opacity .1s}
+.ck i{width:9px;height:5px;border:2px solid #fff;border-top:0;border-right:0;transform:translateY(-1px) rotate(-45deg);display:none}
+.row:hover .ck,.card:hover .ck,body.selecting .ck,.row.head .ck{opacity:1}
+.sel>.ck,.ck.sel{background:var(--accent);border-color:var(--accent);opacity:1}
+.sel>.ck i,.ck.sel i{display:block}
+@media (pointer:coarse){.ck{opacity:1}}
+.row.sel{background:color-mix(in srgb,var(--accent) 13%,var(--panel))}
+.card.sel{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+.card .ck{position:absolute;top:8px;left:8px;z-index:1}
+.selbar{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:35;display:flex;align-items:center;gap:6px;padding:6px 6px 6px 14px;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);max-width:calc(100vw - 24px)}
+.selbar #selCount{font-weight:600;margin-right:6px;white-space:nowrap}
+.btn.danger{color:var(--danger)}
+body.selecting .uploads{bottom:76px}
+.more{height:1px}
+/* move picker */
+.ppath{font-size:13px;color:var(--muted);word-break:break-all;margin-top:6px}
+.pick{border:1px solid var(--line);border-radius:8px;max-height:45vh;overflow:auto;margin:10px 0 16px}
+.pick button{display:flex;align-items:center;gap:8px;width:100%;padding:9px 12px;border:0;border-top:1px solid var(--line);background:none;cursor:pointer;text-align:left}
+.pick button:first-child{border-top:0}
+.pick button:hover{background:var(--hover)}
+.pick .none{padding:14px;color:var(--muted)}
+.mact{display:flex;justify-content:flex-end;gap:8px}
+.btn:disabled{opacity:.45;cursor:default}
+/* uploads */
+.up .st{display:flex;gap:8px;align-items:center}
+.up .st button{background:none;border:0;color:var(--accent);cursor:pointer;padding:0;font:inherit;font-weight:600}
+/* viewer: text */
+.seg{display:inline-flex;background:rgba(255,255,255,.08);border-radius:8px;padding:2px}
+.seg button{border:0;background:none;color:#bbb;padding:0 10px;height:30px;border-radius:6px;cursor:pointer}
+.seg button.on{background:rgba(255,255,255,.18);color:#fff}
+.viewer .vb.text{place-items:stretch;justify-items:center}
+.textwrap{width:min(1100px,100%);height:100%;display:flex;flex-direction:column;gap:8px;min-height:0}
+.doc{flex:1;min-height:0;overflow:auto;background:#1b1b1b;border:1px solid #2c2c2c;border-radius:8px;color:#ddd}
+.code{display:flex;min-width:max-content;min-height:100%;font:13px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;tab-size:4}
+.code pre{margin:0;font:inherit}
+.code .ln{position:sticky;left:0;background:#1b1b1b;color:#5f5f5f;text-align:right;padding:14px 12px 14px 16px;user-select:none;border-right:1px solid #2a2a2a}
+.code .src{padding:14px 16px}
+.code.wrap{min-width:0}.code.wrap .ln{display:none}.code.wrap .src{white-space:pre-wrap;word-break:break-word;flex:1;min-width:0}
+.tc{color:#7d8590;font-style:italic}.ts{color:#a5d6a7}.tn{color:#f7b267}.tk{color:#82aaff}.tf{color:#e6c07b}.tk2,.tt{color:#f07178}.ta{color:#ffcb6b}
+.md{max-width:880px;margin:0 auto;padding:22px 32px 48px;font:15px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;word-wrap:break-word}
+.md>:first-child{margin-top:0}
+.md h1,.md h2{border-bottom:1px solid #333;padding-bottom:.3em}
+.md h1{font-size:1.9em}.md h2{font-size:1.45em}.md h3{font-size:1.2em}
+.md h1,.md h2,.md h3,.md h4{margin:1.4em 0 .6em;line-height:1.25;color:#f2f2f2}
+.md a{color:#7aa7ff}
+.md code{background:#2a2a2a;padding:.15em .4em;border-radius:4px;font:.87em ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.md pre.block{background:#141414;border:1px solid #2c2c2c;border-radius:8px;padding:12px 14px;overflow:auto;line-height:1.5}
+.md pre.block code{background:none;padding:0;font-size:13px}
+.md img{max-width:100%}
+.md blockquote{margin:1em 0;padding:0 1em;color:#aaa;border-left:3px solid #444}
+.md .tbl{overflow-x:auto}
+.md table{border-collapse:collapse;margin:1em 0}
+.md th,.md td{border:1px solid #333;padding:6px 12px}
+.md th{background:#232323}
+.md hr{border:0;border-top:1px solid #333;margin:1.6em 0}
+.md li+li{margin-top:.25em}
+.md li.task{list-style:none;margin-left:-1.4em}
+.md input[type=checkbox]{margin:0 .4em 0 0;vertical-align:middle}
+.csv table{border-collapse:collapse;font-size:13px}
+.csv th,.csv td{border:1px solid #2e2e2e;padding:5px 10px;white-space:nowrap;max-width:420px;overflow:hidden;text-overflow:ellipsis;text-align:left}
+.csv thead th{position:sticky;top:0;background:#262626}
+.csv td.n{color:#666;text-align:right}
 
 .lbl{display:inline}
 @media (max-width:820px){
@@ -1581,7 +1644,7 @@ main{max-width:1200px;margin:0 auto;padding:12px 16px 120px}
   .actions{margin-left:auto}
   .filter{display:none}
   main{padding:8px 8px 120px}
-  .row{grid-template-columns:28px 1fr 40px;height:52px}
+  .row{grid-template-columns:20px 24px 1fr 40px;height:52px}
   .row .size,.row .date{display:none}
   .row .sub{display:block;color:var(--muted);font-size:12px}
   .row .dl{opacity:1}
@@ -1635,6 +1698,7 @@ main{max-width:1200px;margin:0 auto;padding:12px 16px 120px}
 <div class="viewer" id="viewer">
   <div class="vt">
     <div class="t" id="vTitle"></div>
+    <div class="seg" id="vModes" hidden></div>
     <button class="btn" id="vWrap" title="Toggle line wrap" hidden>Wrap</button>
     <button class="btn" id="vCopy" title="Copy text" hidden>Copy</button>
     <a class="btn icon" id="vOpen" title="Open in new tab" target="_blank" rel="noopener"><svg class="i" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a>
@@ -1644,7 +1708,16 @@ main{max-width:1200px;margin:0 auto;padding:12px 16px 120px}
   <div class="vb" id="vBody"></div>
 </div>
 
-<div class="modal" id="qrModal"><div class="box" id="qrBox"></div></div>
+<div class="selbar" id="selbar" hidden>
+  <span id="selCount"></span>
+  <button class="btn hasl" id="selDl" title="Download selected"><svg class="i" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><span class="lbl">Download</span></button>
+  <button class="btn hasl rw" id="selMove" title="Move to another folder"><svg class="i" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 13h6M12.5 10.5 15 13l-2.5 2.5"/></svg><span class="lbl">Move</span></button>
+  <button class="btn hasl rw" id="selRename" title="Rename (F2)"><svg class="i" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13 7l4 4"/></svg><span class="lbl">Rename</span></button>
+  <button class="btn hasl rw danger" id="selDel" title="Delete (Del)"><svg class="i" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg><span class="lbl">Delete</span></button>
+  <button class="btn icon ghost" id="selClear" title="Clear selection (Esc)"><svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+</div>
+
+<div class="modal" id="modal"><div class="box" id="modalBox"></div></div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1662,11 +1735,14 @@ const ICONS = {
   download:'<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
   grid:'<rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/>',
   list:'<path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/>',
-  left:'<path d="M15 6l-6 6 6 6"/>', right:'<path d="M9 6l6 6-6 6"/>',
+  left:'<path d="M15 6l-6 6 6 6"/>', right:'<path d="M9 6l6 6-6 6"/>', up:'<path d="M12 19V5M6 11l6-6 6 6"/>',
 };
 const icon = (n, cls="") => `<svg class="i ${cls}" viewBox="0 0 24 24">${ICONS[n] || ICONS.file}</svg>`;
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const unesc = s => s.replace(/&(amp|lt|gt|quot|#39);/g, (_, e) => ({amp:"&",lt:"<",gt:">",quot:'"',"#39":"'"}[e]));
 const enc = s => encodeURIComponent(s);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const extOf = name => { const n = name.toLowerCase(); const i = n.lastIndexOf("."); return i > 0 ? n.slice(i + 1) : i === 0 ? n.slice(1) : ""; };
 function fmtSize(n){ if(n<1024) return n+" B"; const u=["KB","MB","GB","TB"]; let i=-1; do{n/=1024;i++}while(n>=1024&&i<u.length-1); return (n<10?n.toFixed(1):Math.round(n))+" "+u[i]; }
 function fmtTime(t){
   const d = new Date(t*1000), s = (Date.now()-d)/1000;
@@ -1677,7 +1753,12 @@ function fmtTime(t){
   return d.toLocaleDateString(undefined,{year:"numeric",month:"short",day:"numeric"});
 }
 let toastTimer;
-function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("on"); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove("on"),2200); }
+function toast(msg, action){
+  const t = $("#toast"); t.textContent = "";
+  const span = document.createElement("span"); span.textContent = msg; t.appendChild(span);
+  if (action){ const b = document.createElement("button"); b.textContent = action.label; b.onclick = () => { t.classList.remove("on"); action.run(); }; t.appendChild(b); }
+  t.classList.add("on"); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("on"), action ? 8000 : 2400);
+}
 function copyText(text){
   if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text).then(()=>true,()=>fallbackCopy(text));
   return Promise.resolve(fallbackCopy(text));
@@ -1688,10 +1769,20 @@ function fallbackCopy(text){
   let ok=false; try{ ok=document.execCommand("copy"); }catch(e){}
   ta.remove(); return ok;
 }
+async function api(route, body){
+  const r = await fetch("/__psst/" + route, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body)});
+  const res = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(res.error || "Error " + r.status);
+  return res;
+}
+const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
 
 // ---------------------------------------------------------------- state
-const state = { path: location.pathname, entries: [], readOnly: false, sort: "name", desc: false, filter: "", flash: new Set() };
+const state = { path: location.pathname, entries: [], list: [], readOnly: false, sort: "name", desc: false, filter: "",
+                flash: new Set(), selected: new Set(), anchor: null };
+let info = { thumbs: "exif", urls: [] };
 let viewPref = localStorage.getItem("psst.view") || "auto";
+const coarse = matchMedia("(pointer:coarse)");
 
 function visibleEntries(){
   const f = state.filter.toLowerCase();
@@ -1707,24 +1798,33 @@ function effectiveView(){
   return imgs >= 4 && imgs >= files.length * 0.6 ? "grid" : "list";
 }
 const fileUrl = e => state.path + enc(e.name) + (e.dir ? "/" : "");
+// A thumbnail is worth asking for when the server can make one smaller than the original.
+function thumbable(e){
+  if (e.kind !== "image") return false;
+  const x = extOf(e.name);
+  return x === "jpg" || x === "jpeg" || (info.thumbs === "pillow" && !["svg", "gif", "ico"].includes(x));
+}
+const thumbUrl = e => thumbable(e) ? `/__psst/thumb?path=${enc(fileUrl(e))}&v=${e.mtime}` : fileUrl(e);
 
 // ---------------------------------------------------------------- listing
 async function load(path, push){
   if (push) history.pushState(null, "", path);
   state.path = path;
   state.filter = ""; $("#filter").value = "";
+  state.selected.clear(); state.anchor = null;
   renderCrumbs();
   try {
     const r = await fetch(path + "?json", {cache:"no-store"});
     if (!r.ok) throw new Error(r.status === 404 ? "Folder not found" : "Error " + r.status);
     const data = await r.json();
     state.entries = data.entries; state.readOnly = data.readOnly;
-    document.body.classList.toggle("ro", data.readOnly);
     document.querySelectorAll(".rw").forEach(el => el.hidden = data.readOnly);
     render();
+    window.scrollTo(0, 0);
   } catch (err) {
-    state.entries = [];
+    state.entries = []; state.list = [];
     $("#main").innerHTML = `<div class="empty">${icon("dir")}<div>${esc(err.message)}</div><p><a class="btn" href="/" data-nav>Go to top</a></p></div>`;
+    updateSelBar();
   }
 }
 async function refresh(){
@@ -1740,56 +1840,181 @@ function renderCrumbs(){
   document.title = (parts.length ? decodeURIComponent(parts[parts.length-1]) : "Home") + " · psst";
   $("#zipBtn").href = state.path + "?zip";
 }
+
+const PAGE = 300;   // render big folders in batches as you scroll
+let moreObserver = null;
 function render(){
-  const list = visibleEntries(), view = effectiveView();
+  const list = state.list = visibleEntries(), view = effectiveView();
+  const names = new Set(state.entries.map(e => e.name));
+  for (const n of [...state.selected]) if (!names.has(n)) state.selected.delete(n);
   $("#viewBtn").innerHTML = icon(view === "grid" ? "list" : "grid");
   const main = $("#main");
+  if (moreObserver){ moreObserver.disconnect(); moreObserver = null; }
   if (!list.length){
     main.innerHTML = `<div class="empty">${icon(state.filter ? "file" : "dir")}<div>${state.filter ? "No matches" : "This folder is empty"}</div>${!state.filter && !state.readOnly ? "<div>Drop files anywhere, or paste an image, to upload</div>" : ""}</div>`;
-    return;
+    syncSelection(); return;
   }
   const arrow = k => state.sort === k ? (state.desc ? " ↓" : " ↑") : "";
-  let html;
-  if (view === "grid"){
-    html = `<div class="grid">` + list.map((e,i) => `<div class="card${state.flash.has(e.name)?" flash":""}" data-i="${i}">
-      <div class="thumb">${e.kind==="image" ? `<img loading="lazy" decoding="async" src="${esc(fileUrl(e))}" alt="">` : icon(e.kind, "k-"+e.kind)}</div>
-      <div class="cap">${esc(e.name)}<small>${e.dir ? "Folder" : fmtSize(e.size)}</small></div></div>`).join("") + `</div>`;
-  } else {
-    html = `<div class="rows"><div class="row head"><span></span>
-      <button data-sort="name" class="${state.sort==="name"?"on":""}">Name${arrow("name")}</button>
-      <button data-sort="size" class="${state.sort==="size"?"on":""}" style="text-align:right">Size${arrow("size")}</button>
-      <button data-sort="mtime" class="${state.sort==="mtime"?"on":""}">Modified${arrow("mtime")}</button><span></span></div>` +
-      list.map((e,i) => `<div class="row${state.flash.has(e.name)?" flash":""}" data-i="${i}">
-        ${icon(e.kind, "k-"+e.kind)}
-        <div class="name" title="${esc(e.name)}">${esc(e.name)}<div class="sub">${e.dir ? "Folder" : fmtSize(e.size)} · ${fmtTime(e.mtime)}</div></div>
-        <span class="size">${e.dir ? "" : fmtSize(e.size)}</span>
-        <span class="date" title="${esc(new Date(e.mtime*1000).toLocaleString())}">${fmtTime(e.mtime)}</span>
-        <a class="btn icon ghost dl" href="${esc(fileUrl(e))}${e.dir ? "?zip" : "?dl"}" title="${e.dir ? "Download as .zip" : "Download"}" download>${icon("download")}</a>
-      </div>`).join("") + `</div>`;
-  }
-  main.innerHTML = html;
-  state.flash.clear();
-  main.onclick = ev => {
-    const s = ev.target.closest("[data-sort]");
-    if (s){ const k=s.dataset.sort; state.desc = state.sort===k ? !state.desc : k!=="name"; state.sort=k; render(); return; }
-    if (ev.target.closest(".dl")) return;
-    const el = ev.target.closest("[data-i]"); if (!el) return;
-    const e = list[+el.dataset.i];
-    if (e.dir) load(fileUrl(e), true);
-    else openViewer(list.filter(x => PREVIEW.has(x.kind)), e);
+  const sortBtn = (k, label, style="") => `<button data-sort="${k}" class="${state.sort===k?"on":""}"${style}>${label}${arrow(k)}</button>`;
+  main.innerHTML = view === "grid"
+    ? `<div class="grid" id="items"></div><div class="more" id="more"></div>`
+    : `<div class="rows" id="items"><div class="row head"><span class="ck" id="ckAll" title="Select all (Ctrl+A)"><i></i></span><span></span>
+        ${sortBtn("name","Name")}${sortBtn("size","Size",' style="text-align:right"')}${sortBtn("mtime","Modified")}<span></span></div></div><div class="more" id="more"></div>`;
+  const box = $("#items");
+  let shown = 0;
+  const more = () => {
+    box.insertAdjacentHTML("beforeend", list.slice(shown, shown + PAGE).map((e, j) => itemHtml(e, shown + j, view)).join(""));
+    shown += PAGE;
+    if (shown >= list.length && moreObserver){ moreObserver.disconnect(); moreObserver = null; }
   };
+  more();
+  if (shown < list.length){
+    moreObserver = new IntersectionObserver(es => { if (es[0].isIntersecting) more(); }, {rootMargin: "1200px"});
+    moreObserver.observe($("#more"));
+  }
+  state.flash.clear();
+  syncSelection();
 }
+function itemHtml(e, i, view){
+  const cls = (state.selected.has(e.name) ? " sel" : "") + (state.flash.has(e.name) ? " flash" : "");
+  const ck = `<span class="ck" data-ck><i></i></span>`;
+  if (view === "grid") return `<div class="card${cls}" data-i="${i}">${ck}
+    <div class="thumb">${e.kind==="image" ? `<img loading="lazy" decoding="async" src="${esc(thumbUrl(e))}" alt="">` : icon(e.kind, "k-"+e.kind)}</div>
+    <div class="cap">${esc(e.name)}<small>${e.dir ? "Folder" : fmtSize(e.size)}</small></div></div>`;
+  return `<div class="row${cls}" data-i="${i}">${ck}${icon(e.kind, "k-"+e.kind)}
+    <div class="name" title="${esc(e.name)}">${esc(e.name)}<div class="sub">${e.dir ? "Folder" : fmtSize(e.size)} · ${fmtTime(e.mtime)}</div></div>
+    <span class="size">${e.dir ? "" : fmtSize(e.size)}</span>
+    <span class="date" title="${esc(new Date(e.mtime*1000).toLocaleString())}">${fmtTime(e.mtime)}</span>
+    <a class="btn icon ghost dl" href="${esc(fileUrl(e))}${e.dir ? "?zip" : "?dl"}" title="${e.dir ? "Download as .zip" : "Download"}" download>${icon("download")}</a></div>`;
+}
+$("#main").addEventListener("click", ev => {
+  const s = ev.target.closest("[data-sort]");
+  if (s){ const k=s.dataset.sort; state.desc = state.sort===k ? !state.desc : k!=="name"; state.sort=k; render(); return; }
+  if (ev.target.closest("#ckAll")){ selectAll(); return; }
+  if (ev.target.closest(".dl")) return;
+  const el = ev.target.closest("[data-i]"); if (!el) return;
+  const i = +el.dataset.i, e = state.list[i];
+  if (ev.target.closest("[data-ck]") || ev.ctrlKey || ev.metaKey){ select(i, ev.shiftKey ? "range" : "toggle"); return; }
+  if (ev.shiftKey){ select(i, "range"); return; }
+  if (state.selected.size && coarse.matches){ select(i, "toggle"); return; }   // phones: tap adds to selection
+  if (e.dir) load(fileUrl(e), true);
+  else openViewer(state.list.filter(x => PREVIEW.has(x.kind)), e);
+});
 $("#viewBtn").onclick = () => { viewPref = effectiveView() === "grid" ? "list" : "grid"; localStorage.setItem("psst.view", viewPref); render(); };
 $("#filter").oninput = e => { state.filter = e.target.value; render(); };
 document.addEventListener("click", e => {
   const a = e.target.closest("a[data-nav]");
   if (a && !e.ctrlKey && !e.metaKey && !e.shiftKey){ e.preventDefault(); load(a.getAttribute("href"), true); }
 });
-window.addEventListener("popstate", () => { closeViewer(true); load(location.pathname, false); });
+window.addEventListener("popstate", () => { closeViewer(); closeModal(); load(location.pathname, false); });
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { refresh(); pollClip(); } });
 
+// ---------------------------------------------------------------- selection & file management
+function select(i, mode){
+  if (mode === "range" && state.anchor !== null){
+    const [a, b] = [Math.min(state.anchor, i), Math.max(state.anchor, i)];
+    for (let k = a; k <= b; k++) state.selected.add(state.list[k].name);
+  } else {
+    const n = state.list[i].name;
+    state.selected.has(n) ? state.selected.delete(n) : state.selected.add(n);
+    state.anchor = i;
+  }
+  syncSelection();
+}
+function selectAll(){
+  const all = state.list.length && state.list.every(e => state.selected.has(e.name));
+  state.selected.clear();
+  if (!all) state.list.forEach(e => state.selected.add(e.name));
+  syncSelection();
+}
+function clearSelection(){ state.selected.clear(); state.anchor = null; syncSelection(); }
+function syncSelection(){
+  document.querySelectorAll("#items [data-i]").forEach(el => el.classList.toggle("sel", state.selected.has(state.list[+el.dataset.i].name)));
+  const all = $("#ckAll"); if (all) all.classList.toggle("sel", state.list.length > 0 && state.list.every(e => state.selected.has(e.name)));
+  document.body.classList.toggle("selecting", state.selected.size > 0);
+  updateSelBar();
+}
+function updateSelBar(){
+  const n = state.selected.size;
+  $("#selbar").hidden = !n;
+  $("#selCount").textContent = `${n} selected`;
+  $("#selMove").hidden = $("#selDel").hidden = state.readOnly;
+  $("#selRename").hidden = state.readOnly || n !== 1;
+}
+const selectedNames = () => state.list.filter(e => state.selected.has(e.name)).map(e => e.name);
+
+function downloadSelected(){
+  const names = selectedNames(); if (!names.length) return;
+  const one = state.entries.find(e => e.name === names[0]);
+  if (names.length === 1 && !one.dir){ location.href = fileUrl(one) + "?dl"; return; }
+  // A real form POST, so the browser treats the zip reply as a download.
+  const form = document.createElement("form"); form.method = "POST"; form.action = "/__psst/zip";
+  const add = (k, v) => { const inp = document.createElement("input"); inp.type = "hidden"; inp.name = k; inp.value = v; form.appendChild(inp); };
+  add("path", state.path); names.forEach(n => add("name", n));
+  document.body.appendChild(form); form.submit(); form.remove();
+}
+async function deleteSelected(){
+  const names = selectedNames(); if (!names.length || state.readOnly) return;
+  try {
+    const res = await api("delete", {path: state.path, names});
+    clearSelection(); refresh();
+    const where = state.path;
+    toast(`Deleted ${plural(res.count, "item")}` + (res.errors.length ? ` (${res.errors.length} failed)` : ""), {label: "Undo", run: async () => {
+      try { const r = await api("restore", {trash: res.trash}); if (where === state.path) r.names.forEach(n => state.flash.add(n)); refresh(); toast(`Restored ${plural(r.names.length, "item")}`); }
+      catch (err) { toast(err.message); }
+    }});
+  } catch (err) { toast(err.message); }
+}
+async function renameSelected(){
+  const names = selectedNames(); if (names.length !== 1 || state.readOnly) return;
+  const to = prompt("Rename to", names[0]);
+  if (!to || !to.trim() || to === names[0]) return;
+  try { const r = await api("rename", {path: state.path, from: names[0], to}); clearSelection(); state.flash.add(r.name); refresh(); }
+  catch (err) { toast(err.message); }
+}
+function openModal(html){ $("#modalBox").innerHTML = html; $("#modal").classList.add("on"); }
+function closeModal(){ $("#modal").classList.remove("on"); }
+$("#modal").onclick = e => { if (e.target === $("#modal")) closeModal(); };
+
+async function moveSelected(){
+  const names = selectedNames(); if (!names.length || state.readOnly) return;
+  const from = state.path;
+  let at = from;
+  const draw = async () => {
+    let dirs = [];
+    try {
+      const d = await (await fetch(at + "?json", {cache:"no-store"})).json();
+      dirs = d.entries.filter(e => e.dir && !(at === from && names.includes(e.name)))
+                      .sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric:true, sensitivity:"base"}));
+    } catch (e) {}
+    const parts = at.split("/").filter(Boolean);
+    const up = parts.length ? "/" + parts.slice(0, -1).map(p => p + "/").join("") : null;
+    openModal(`<h2>Move ${names.length === 1 ? esc(names[0]) : plural(names.length, "item")}</h2>
+      <div class="ppath">To: Home${parts.map(p => " / " + esc(decodeURIComponent(p))).join("")}</div>
+      <div class="pick">${up ? `<button data-go="${esc(up)}">${icon("up")}..</button>` : ""}
+        ${dirs.map(d => `<button data-go="${esc(at + enc(d.name) + "/")}">${icon("dir", "k-dir")}${esc(d.name)}</button>`).join("")}
+        ${!dirs.length && !up ? `<div class="none">No other folders here</div>` : ""}</div>
+      <div class="mact"><button class="btn" id="mvCancel">Cancel</button><button class="btn primary" id="mvHere"${at === from ? " disabled" : ""}>Move here</button></div>`);
+    $("#modalBox").querySelectorAll("[data-go]").forEach(b => b.onclick = () => { at = b.dataset.go; draw(); });
+    $("#mvCancel").onclick = closeModal;
+    $("#mvHere").onclick = async () => {
+      try {
+        const r = await api("move", {path: from, names, dest: at});
+        closeModal(); clearSelection(); refresh();
+        toast(`Moved ${plural(r.names.length, "item")} to ${decodeURIComponent(parts[parts.length - 1] || "Home")}` + (r.errors.length ? ` (${r.errors.length} failed)` : ""));
+      } catch (err) { toast(err.message); }
+    };
+  };
+  draw();
+}
+$("#selDl").onclick = downloadSelected;
+$("#selDel").onclick = deleteSelected;
+$("#selRename").onclick = renameSelected;
+$("#selMove").onclick = moveSelected;
+$("#selClear").onclick = clearSelection;
+
 // ---------------------------------------------------------------- viewer
-let vList = [], vIdx = 0, vText = "";
+let vList = [], vIdx = 0, vText = "", vToken = 0;
 const PREVIEW = new Set(["image", "video", "audio", "pdf", "text"]);
 function openViewer(list, entry){
   if (!PREVIEW.has(entry.kind)){ location.href = fileUrl(entry) + "?dl"; return; }
@@ -1798,18 +2023,23 @@ function openViewer(list, entry){
   showItem();
 }
 function closeViewer(){
+  vToken++;
   $("#viewer").classList.remove("on"); document.body.style.overflow = "";
   $("#vBody").innerHTML = "";
 }
-async function showItem(){
-  const e = vList[vIdx], url = fileUrl(e), body = $("#vBody");
+function showItem(){
+  const token = ++vToken, e = vList[vIdx], url = fileUrl(e), body = $("#vBody");
   $("#vTitle").innerHTML = `${esc(e.name)}<small>${fmtSize(e.size)}${vList.length>1 ? " · "+(vIdx+1)+" / "+vList.length : ""}</small>`;
   $("#vOpen").href = url; $("#vDl").href = url + "?dl";
-  $("#vCopy").hidden = $("#vWrap").hidden = e.kind !== "text";
+  $("#vCopy").hidden = $("#vWrap").hidden = $("#vModes").hidden = true;
+  body.className = "vb"; body.style.gridTemplateRows = "";
   const nav = vList.length > 1 ? `<button class="nav prev" data-d="-1">${icon("left")}</button><button class="nav next" data-d="1">${icon("right")}</button>` : "";
   if (e.kind === "image"){
-    body.innerHTML = `<img src="${esc(url)}" alt="">` + nav;
-    for (const d of [-1, 1]){ const n = vList[(vIdx+d+vList.length)%vList.length]; if (n.kind==="image") new Image().src = fileUrl(n); }
+    // Show the small thumbnail at once, then swap in the full image when it arrives.
+    const small = thumbable(e) ? thumbUrl(e) : null;
+    body.innerHTML = `<img src="${esc(small || url)}" alt="">` + nav;
+    if (small){ const img = body.querySelector("img"), full = new Image(); full.onload = () => { if (token === vToken) img.src = url; }; full.src = url; }
+    for (const d of [-1, 1]){ const n = vList[(vIdx+d+vList.length)%vList.length]; if (n.kind==="image" && n !== e) new Image().src = fileUrl(n); }
   } else if (e.kind === "video"){
     body.innerHTML = `<video src="${esc(url)}" controls autoplay playsinline></video>` + nav;
   } else if (e.kind === "audio"){
@@ -1817,26 +2047,19 @@ async function showItem(){
   } else if (e.kind === "pdf"){
     body.innerHTML = `<iframe src="${esc(url)}"></iframe>` + nav;
   } else if (e.kind === "text"){
+    body.classList.add("text");
     body.innerHTML = `<div class="note">Loading…</div>`;
-    const LIMIT = 2*1024*1024, want = vIdx;
-    try {
-      const r = await fetch(url, {headers: e.size > LIMIT ? {Range: "bytes=0-"+(LIMIT-1)} : {}, cache:"no-store"});
-      const buf = await r.arrayBuffer();
-      if (want !== vIdx || !$("#viewer").classList.contains("on")) return;
-      vText = new TextDecoder("utf-8").decode(buf);
-      const wrap = localStorage.getItem("psst.wrap") === "1";
-      body.innerHTML = (e.size > LIMIT ? `<div class="note" style="margin-bottom:8px">Showing the first 2 MB of ${fmtSize(e.size)}</div>` : "") +
-        `<pre class="txt${wrap?" wrap":""}"></pre>` + nav;
-      body.querySelector("pre").textContent = vText;
-      if (e.size > LIMIT) body.style.gridTemplateRows = "auto 1fr"; else body.style.gridTemplateRows = "";
-    } catch (err) { body.innerHTML = `<div class="note">Could not load file</div>`; }
+    showText(e, url, body, nav, token);
   }
 }
-function step(d){ if (vList.length < 2) return; vIdx = (vIdx + d + vList.length) % vList.length; $("#vBody").style.gridTemplateRows=""; showItem(); }
+function step(d){ if (vList.length < 2) return; vIdx = (vIdx + d + vList.length) % vList.length; showItem(); }
 $("#vBody").addEventListener("click", e => { const b = e.target.closest(".nav"); if (b) step(+b.dataset.d); else if (e.target === $("#vBody")) closeViewer(); });
 $("#vClose").onclick = closeViewer;
 $("#vCopy").onclick = () => copyText(vText).then(ok => toast(ok ? "Copied" : "Copy failed"));
-$("#vWrap").onclick = () => { const p = $("#vBody pre"); if (!p) return; p.classList.toggle("wrap"); localStorage.setItem("psst.wrap", p.classList.contains("wrap") ? "1" : "0"); };
+$("#vWrap").onclick = () => {
+  const c = $("#vBody .code"); if (!c) return;
+  c.classList.toggle("wrap"); localStorage.setItem("psst.wrap", c.classList.contains("wrap") ? "1" : "0");
+};
 let touchX = null;
 $("#viewer").addEventListener("touchstart", e => { touchX = e.touches.length === 1 ? e.touches[0].clientX : null; }, {passive:true});
 $("#viewer").addEventListener("touchend", e => {
@@ -1844,9 +2067,313 @@ $("#viewer").addEventListener("touchend", e => {
   const dx = e.changedTouches[0].clientX - touchX; if (Math.abs(dx) > 60) step(dx < 0 ? 1 : -1); touchX = null;
 });
 
+// ---------------------------------------------------------------- text previews
+const TEXT_LIMIT = 2 * 1024 * 1024;
+function decodeText(b){
+  if (b[0] === 0xFF && b[1] === 0xFE) return new TextDecoder("utf-16le").decode(b.subarray(2));
+  if (b[0] === 0xFE && b[1] === 0xFF) return new TextDecoder("utf-16be").decode(b.subarray(2));
+  let t = new TextDecoder("utf-8").decode(b);
+  const bad = (t.match(/�/g) || []).length;
+  if (bad > 2 && bad > t.length / 1000){ try { t = new TextDecoder("windows-1252").decode(b); } catch (e) {} }
+  return t;
+}
+async function showText(e, url, body, nav, token){
+  let buf;
+  try {
+    const r = await fetch(url, {headers: e.size > TEXT_LIMIT ? {Range: "bytes=0-" + (TEXT_LIMIT - 1)} : {}, cache:"no-store"});
+    buf = new Uint8Array(await r.arrayBuffer());
+  } catch (err) { if (token === vToken) body.innerHTML = `<div class="note">Could not load file</div>`; return; }
+  if (token !== vToken) return;
+  const text = vText = decodeText(buf);
+  const x = extOf(e.name) || e.name.toLowerCase();
+  const modes = [];
+  if (x === "md" || x === "markdown") modes.push(["Preview", () => `<div class="md">${renderMarkdown(text, new URL(url, location.href).href)}</div>`], ["Source", () => codeView(text, "md")]);
+  else if (x === "csv" || x === "tsv") modes.push(["Table", () => csvView(text, x === "tsv" ? "\t" : ",")], ["Source", () => codeView(text, x)]);
+  else if (x === "json" && text.length > 80 && text.trim().split("\n").length <= 2 && parsesAsJson(text))
+    modes.push(["Formatted", () => codeView(JSON.stringify(JSON.parse(text), null, 2), "json")], ["Original", () => codeView(text, "json")]);
+  else modes.push(["Source", () => codeView(text, x)]);
+  const note = e.size > TEXT_LIMIT ? `<div class="note">Showing the first 2 MB of ${fmtSize(e.size)}</div>` : "";
+  body.innerHTML = `<div class="textwrap">${note}<div class="doc"></div></div>` + nav;
+  const doc = body.querySelector(".doc");
+  const seg = $("#vModes");
+  const pick = k => {
+    doc.innerHTML = modes[k][1](); doc.scrollTop = 0;
+    seg.querySelectorAll("button").forEach((b, j) => b.classList.toggle("on", j === k));
+    $("#vWrap").hidden = !doc.querySelector(".code");
+  };
+  seg.innerHTML = modes.map(m => `<button>${m[0]}</button>`).join("");
+  seg.hidden = modes.length < 2;
+  seg.querySelectorAll("button").forEach((b, k) => b.onclick = () => pick(k));
+  $("#vCopy").hidden = false;
+  pick(0);
+}
+function parsesAsJson(t){ try { JSON.parse(t); return true; } catch (e) { return false; } }
+function codeView(text, lang){
+  const n = Math.max(1, text.split("\n").length - (text.endsWith("\n") ? 1 : 0));
+  const wrap = localStorage.getItem("psst.wrap") === "1";
+  const nums = Array.from({length: n}, (_, i) => i + 1).join("\n");
+  const code = text.length <= 400000 ? highlight(text, lang) : esc(text);
+  return `<div class="code${wrap ? " wrap" : ""}"><pre class="ln">${nums}</pre><pre class="src">${code}</pre></div>`;
+}
+function csvView(text, delim){
+  const MAX = 5000, rows = [];
+  let row = [], field = "", q = false;
+  for (let i = 0; i < text.length && rows.length <= MAX; i++){
+    const c = text[i];
+    if (q){ if (c === '"'){ if (text[i+1] === '"'){ field += '"'; i++; } else q = false; } else field += c; }
+    else if (c === '"' && field === "") q = true;
+    else if (c === delim){ row.push(field); field = ""; }
+    else if (c === "\n"){ row.push(field); rows.push(row); row = []; field = ""; }
+    else if (c !== "\r") field += c;
+  }
+  if (field || row.length) { row.push(field); rows.push(row); }
+  if (!rows.length) return codeView(text, "csv");
+  const head = rows[0], cols = Math.max(...rows.slice(0, MAX).map(r => r.length));
+  const cell = (tag, v) => `<${tag} title="${esc(v)}">${esc(v)}</${tag}>`;
+  return `<div class="csv"><table><thead><tr><th></th>${Array.from({length: cols}, (_, k) => cell("th", head[k] || "")).join("")}</tr></thead><tbody>` +
+    rows.slice(1, MAX).map((r, i) => `<tr><td class="n">${i + 1}</td>${Array.from({length: cols}, (_, k) => cell("td", r[k] || "")).join("")}</tr>`).join("") +
+    `</tbody></table>${rows.length > MAX ? `<div class="note" style="padding:10px">Showing the first ${MAX - 1} rows</div>` : ""}</div>`;
+}
+
+// Syntax highlighting: a small tokenizer, good enough for reading code, not a parser.
+const KW = {
+  js: "break case catch class const continue debugger default delete do else export extends finally for from function if import in instanceof let new of return super switch this throw try typeof var void while with yield async await static get set null undefined true false interface type enum implements private public protected readonly as",
+  py: "and as assert async await break class continue def del elif else except finally for from global if import in is lambda nonlocal not or pass raise return try while with yield None True False self match case",
+  c: "auto break case char const continue default do double else enum extern float for goto if inline int long register return short signed sizeof static struct switch typedef union unsigned void volatile while class namespace template typename public private protected virtual override new delete this true false null nullptr bool using import package interface extends implements final abstract fn let mut pub impl trait mod use crate self Self match loop where func go defer chan map range select type var val fun when object companion String string",
+  sh: "if then else elif fi for while do done case esac in function return local export echo exit set unset source alias cd sudo",
+  sql: "select from where insert into values update set delete create table drop alter add primary key foreign references join left right inner outer on group by order having limit offset as and or not null is in like between distinct union all count sum avg min max index view default unique",
+  misc: "true false null yes no on off nil def end class module require do then if else elsif unless return",
+};
+const LANG = {};
+const defLang = (exts, spec) => exts.split(" ").forEach(x => LANG[x] = spec);
+defLang("js mjs cjs ts tsx jsx vue svelte", {kw: KW.js, line: ["//"], block: ["/*", "*/"], str: "'\"`"});
+defLang("py pyw", {kw: KW.py, line: ["#"], str: "'\"", triple: true});
+defLang("c h cc cpp cxx hpp cs java kt kts scala swift dart go rs m mm gradle groovy proto", {kw: KW.c, line: ["//"], block: ["/*", "*/"], str: "\"`", chr: true});
+defLang("php", {kw: KW.c, line: ["//", "#"], block: ["/*", "*/"], str: "'\""});
+defLang("sh bash zsh fish ps1 psm1 env dockerfile makefile justfile procfile", {kw: KW.sh, line: ["#"], str: "'\""});
+defLang("rb pl r ex exs yaml yml toml gitignore gitattributes dockerignore properties", {kw: KW.misc, line: ["#"], str: "'\"", key: true});
+defLang("ini cfg conf editorconfig", {kw: KW.misc, line: ["#", ";"], str: "'\"", key: true});
+defLang("sql", {kw: KW.sql, line: ["--"], block: ["/*", "*/"], str: "'\"", ci: true});
+defLang("lua hs", {kw: KW.misc, line: ["--"], str: "'\""});
+defLang("css scss less", {kw: "", line: ["//"], block: ["/*", "*/"], str: "'\""});
+defLang("json jsonl", {kw: "true false null", str: "\"", key: false});
+defLang("bat cmd", {kw: "if else for in do goto call set echo exit not exist", line: ["::", "REM ", "rem "], str: "\"", ci: true});
+defLang("html htm xml svg xhtml plist", {markup: true});
+const LANG_ALIAS = {javascript: "js", typescript: "ts", python: "py", shell: "sh", console: "sh", powershell: "ps1", yml: "yaml", rust: "rs", golang: "go", "c++": "cpp", csharp: "cs", "c#": "cs", kotlin: "kt", ruby: "rb"};
+const END = "(?![\\s\\S])";
+const STR = {'"': /"(?:\\.|[^"\\\n])*"?/.source, "'": /'(?:\\.|[^'\\\n])*'?/.source, "`": /`(?:\\[\s\S]|[^`\\])*`?/.source};
+const CHR = /'(?:\\[^\n]{1,8}?|[^'\\\n])'/.source;
+const TRIPLE = `"{3}[\\s\\S]*?(?:"{3}|${END})|'{3}[\\s\\S]*?(?:'{3}|${END})`;
+const reEsc = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function langRe(L){
+  if (L.re) return L.re;
+  const alt = [], com = [], str = [];
+  if (L.block) com.push(reEsc(L.block[0]) + "[\\s\\S]*?(?:" + reEsc(L.block[1]) + "|" + END + ")");
+  if (L.line) com.push("(?:" + L.line.map(reEsc).join("|") + ").*");
+  if (com.length) alt.push("(?<com>" + com.join("|") + ")");
+  if (L.triple) str.push(TRIPLE);
+  for (const q of L.str || "") str.push(STR[q]);
+  if (L.chr) str.push(CHR);
+  if (str.length) alt.push("(?<str>" + str.join("|") + ")");
+  if (L.key) alt.push("(?<key>^[ \\t]*[\\w.-]+(?=[ \\t]*[:=]))");
+  alt.push("(?<num>\\b(?:0[xX][\\da-fA-F]+|\\d[\\d_]*(?:\\.\\d+)?(?:[eE][+-]?\\d+)?)\\b)");
+  alt.push("(?<word>[A-Za-z_$@][\\w$]*)");
+  L.kwSet = new Set((L.kw || "").split(" ").map(w => L.ci ? w.toLowerCase() : w));
+  return L.re = new RegExp(alt.join("|"), "gm");
+}
+function highlight(text, lang){
+  const L = LANG[LANG_ALIAS[lang] || lang];
+  if (!L) return esc(text);
+  if (L.markup) return highlightMarkup(text);
+  let re;
+  try { re = langRe(L); } catch (e) { return esc(text); }   // very old browsers lack named groups
+  re.lastIndex = 0;
+  let out = "", last = 0, m;
+  while ((m = re.exec(text))){
+    if (!m[0]) { re.lastIndex++; continue; }
+    out += esc(text.slice(last, m.index)); last = re.lastIndex;
+    const g = m.groups, t = m[0];
+    let cls = g.com ? "c" : g.str ? "s" : g.key ? "k2" : g.num ? "n" : "";
+    if (!cls && g.word){
+      if (L.kwSet.has(L.ci ? t.toLowerCase() : t)) cls = "k";
+      else if (text[re.lastIndex] === "(") cls = "f";
+    }
+    out += cls ? `<span class="t${cls}">${esc(t)}</span>` : esc(t);
+  }
+  return out + esc(text.slice(last));
+}
+function highlightMarkup(text){
+  const re = /<!--[\s\S]*?(?:-->|(?![\s\S]))|<\/?[A-Za-z][\w:.-]*[^<>]*>?/g;
+  let out = "", last = 0, m;
+  while ((m = re.exec(text))){
+    out += esc(text.slice(last, m.index)); last = re.lastIndex;
+    const t = m[0];
+    if (t.startsWith("<!--")){ out += `<span class="tc">${esc(t)}</span>`; continue; }
+    const p = /^(<\/?)([\w:.-]+)([\s\S]*?)(\/?>)?$/.exec(t);
+    const attrs = p[3].replace(/([^\s=]+)(\s*=\s*)("[^"]*"|'[^']*'|[^\s"'>]+)|([^\s=]+)|([\s\S])/g, (all, k, eq, v, bare, other) =>
+      k ? `<span class="ta">${esc(k)}</span>${esc(eq)}<span class="ts">${esc(v)}</span>` : bare ? `<span class="ta">${esc(bare)}</span>` : esc(other));
+    out += esc(p[1]) + `<span class="tt">${esc(p[2])}</span>` + attrs + esc(p[4] || "");
+  }
+  return out + esc(text.slice(last));
+}
+
+// Markdown: CommonMark-ish. Raw HTML is passed through a strict allow-list.
+function urlOk(raw, base){
+  try {
+    const abs = new URL(raw.trim(), base);
+    return /^(https?|mailto):$/.test(abs.protocol) ? abs.href : "#";
+  } catch (e) { return "#"; }
+}
+const safeUrl = (escaped, base) => esc(urlOk(unesc(escaped), base));
+function renderMarkdown(src, base){
+  return mdBlocks(src.replace(/\r\n?/g, "\n").replace(/\t/g, "    ").split("\n"), base);
+}
+const LIST_RE = /^(\s*)([-*+]|\d{1,9}[.)])(\s+)(.*)$/;
+const indentOf = s => s.match(/^ */)[0].length;
+function mdBlocks(lines, base){
+  let html = "", i = 0;
+  const para = [];
+  const flush = () => { if (para.length){ html += "<p>" + mdInline(para.join("\n"), base) + "</p>"; para.length = 0; } };
+  while (i < lines.length){
+    const line = lines[i];
+    let m;
+    if (!line.trim()){ flush(); i++; continue; }
+    if ((m = /^ {0,3}(`{3,}|~{3,})\s*([^\s`]*)/.exec(line))){
+      flush();
+      const fence = m[1], lang = m[2].toLowerCase(), code = [];
+      i++;
+      while (i < lines.length && !lines[i].trimStart().startsWith(fence)) code.push(lines[i++]);
+      i++;
+      html += `<pre class="block"><code>${highlight(code.join("\n"), lang)}</code></pre>`;
+      continue;
+    }
+    if (para.length && /^ {0,3}(=+|-+)\s*$/.test(line)){
+      const n = line.trim()[0] === "=" ? 1 : 2;
+      html += `<h${n}>${mdInline(para.join("\n"), base)}</h${n}>`; para.length = 0; i++; continue;
+    }
+    if ((m = /^ {0,3}(#{1,6})\s+(.*?)(\s+#+)?\s*$/.exec(line))){ flush(); const n = m[1].length; html += `<h${n}>${mdInline(m[2], base)}</h${n}>`; i++; continue; }
+    if (/^ {0,3}([-*_])( *\1){2,}\s*$/.test(line)){ flush(); html += "<hr>"; i++; continue; }
+    if (/^ {0,3}>/.test(line)){
+      flush(); const q = [];
+      while (i < lines.length && /^ {0,3}>/.test(lines[i])) q.push(lines[i++].replace(/^ {0,3}> ?/, ""));
+      html += `<blockquote>${mdBlocks(q, base)}</blockquote>`; continue;
+    }
+    if (!para.length && /^ {0,3}<(\/?[a-zA-Z][\w-]*|!--)/.test(line)){
+      const block = [];
+      while (i < lines.length && lines[i].trim()) block.push(lines[i++]);
+      html += sanitizeHtml(block.join("\n"), base); continue;
+    }
+    if (LIST_RE.test(line) && (!para.length || /^\s*([-*+]|1[.)])\s/.test(line))){ flush(); const r = mdList(lines, i, base); html += r.html; i = r.next; continue; }
+    if (line.includes("|") && i + 1 < lines.length && /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/.test(lines[i+1]) && lines[i+1].includes("-")){
+      flush();
+      const cells = s => s.trim().replace(/\\\|/g, "\u0003").replace(/^\||\|$/g, "").split("|").map(c => c.trim().replace(/\u0003/g, "|"));
+      const head = cells(line);
+      const align = cells(lines[i+1]).map(c => c.startsWith(":") && c.endsWith(":") ? "center" : c.endsWith(":") ? "right" : c.startsWith(":") ? "left" : "");
+      const al = k => align[k] ? ` style="text-align:${align[k]}"` : "";
+      i += 2;
+      const rows = [];
+      while (i < lines.length && lines[i].trim() && lines[i].includes("|")) rows.push(cells(lines[i++]));
+      html += `<div class="tbl"><table><thead><tr>${head.map((c, k) => `<th${al(k)}>${mdInline(c, base)}</th>`).join("")}</tr></thead><tbody>` +
+        rows.map(r => `<tr>${head.map((_, k) => `<td${al(k)}>${mdInline(r[k] || "", base)}</td>`).join("")}</tr>`).join("") + `</tbody></table></div>`;
+      continue;
+    }
+    para.push(line); i++;
+  }
+  flush();
+  return html;
+}
+function mdList(lines, i, base){
+  const first = LIST_RE.exec(lines[i]);
+  const indent = first[1].length, ordered = /\d/.test(first[2]);
+  const items = [];
+  let loose = false;
+  while (i < lines.length){
+    const line = lines[i], m = LIST_RE.exec(line);
+    if (m && m[1].length === indent && /\d/.test(m[2]) === ordered){
+      items.push({lines: [m[4]], pad: indent + m[2].length + Math.min(m[3].length, 4)}); i++; continue;
+    }
+    const cur = items[items.length - 1];
+    if (!line.trim()){
+      const nx = lines[i + 1];
+      if (nx === undefined) break;
+      const nm = LIST_RE.exec(nx);
+      if (indentOf(nx) > indent && nx.trim()){ cur.lines.push(""); loose = true; i++; continue; }
+      if (nm && nm[1].length === indent && /\d/.test(nm[2]) === ordered){ loose = true; i++; continue; }
+      break;
+    }
+    if (indentOf(line) > indent){ cur.lines.push(line.slice(Math.min(indentOf(line), cur.pad))); i++; continue; }
+    if (!m && !/^ {0,3}(#|>|`{3}|~{3})/.test(line)){ cur.lines.push(line); i++; continue; }   // lazy continuation
+    break;
+  }
+  const tag = ordered ? "ol" : "ul";
+  const start = ordered ? parseInt(first[2], 10) : 1;
+  let html = `<${tag}${start !== 1 ? ` start="${start}"` : ""}>`;
+  for (const it of items){
+    let box = "";
+    const t = /^\[([ xX])\]\s+/.exec(it.lines[0]);
+    if (t){ box = `<input type="checkbox" disabled${t[1] !== " " ? " checked" : ""}>`; it.lines[0] = it.lines[0].slice(t[0].length); }
+    let inner = mdBlocks(it.lines, base);
+    if (!loose) inner = inner.replace(/^<p>([\s\S]*?)<\/p>/, "$1");
+    html += `<li${box ? ' class="task"' : ""}>${box}${inner}</li>`;
+  }
+  return {html: html + `</${tag}>`, next: i};
+}
+function mdInline(s, base){
+  const slots = [];
+  const keep = h => "\u0001" + (slots.push(h) - 1) + "\u0002";
+  s = s.replace(/(`+)([\s\S]*?[^`])\1(?!`)/g, (_, t, c) => keep(`<code>${esc(c.trim() || c)}</code>`));
+  s = s.replace(/\\([\\`*_{}\[\]()#+\-.!|~<>])/g, (_, c) => keep(esc(c)));
+  s = s.replace(/<(https?:\/\/[^\s>]+)>/g, (_, u) => keep(`<a href="${esc(urlOk(u, base))}" target="_blank" rel="noopener">${esc(u)}</a>`));
+  s = s.replace(/<br\s*\/?>/gi, () => keep("<br>"));
+  s = esc(s);
+  s = s.replace(/!\[([^\]]*)\]\(\s*([^)\s]+)(?:\s+&quot;[^)]*?&quot;)?\s*\)/g, (_, alt, u) => keep(`<img src="${safeUrl(u, base)}" alt="${alt}" loading="lazy">`));
+  s = s.replace(/\[([^\]]+)\]\(\s*([^)\s]+)(?:\s+&quot;[^)]*?&quot;)?\s*\)/g, (_, t, u) => keep(`<a href="${safeUrl(u, base)}" target="_blank" rel="noopener">${emph(t)}</a>`));
+  s = s.replace(/(^|[\s(])(https?:\/\/[^\s<]*[^\s<.,;:!?)'"\]])/g, (_, p, u) => p + keep(`<a href="${safeUrl(u, base)}" target="_blank" rel="noopener">${u}</a>`));
+  s = emph(s).replace(/ {2,}\n/g, "<br>");
+  while (/\u0001\d+\u0002/.test(s)) s = s.replace(/\u0001(\d+)\u0002/g, (_, k) => slots[k]);
+  return s;
+}
+function emph(s){
+  return s.replace(/(\*\*|__)(?=\S)([\s\S]*?\S)\1/g, "<strong>$2</strong>")
+          .replace(/(^|[^\w*])\*(?=\S)([\s\S]*?\S)\*(?![\w*])/g, "$1<em>$2</em>")
+          .replace(/(^|[^\w])_(?=\S)([\s\S]*?\S)_(?!\w)/g, "$1<em>$2</em>")
+          .replace(/~~(?=\S)([\s\S]*?\S)~~/g, "<del>$1</del>");
+}
+const OK_TAGS = new Set("p div span img br hr h1 h2 h3 h4 h5 h6 a em strong b i u s del ins code pre kbd sub sup small details summary blockquote ul ol li table thead tbody tr th td center".split(" "));
+const OK_ATTRS = new Set("src alt width height href align title colspan rowspan start open".split(" "));
+const DROP_TAGS = new Set("script style iframe object embed form input button textarea select link meta base svg math template noscript frame frameset".split(" "));
+function sanitizeHtml(html, base){
+  const root = new DOMParser().parseFromString(`<div>${html}</div>`, "text/html").body.firstChild;
+  const walk = node => {
+    for (const el of [...node.children]){
+      const tag = el.tagName.toLowerCase();
+      if (DROP_TAGS.has(tag)){ el.remove(); continue; }
+      walk(el);
+      if (!OK_TAGS.has(tag)){ el.replaceWith(...el.childNodes); continue; }
+      for (const a of [...el.attributes]){
+        const n = a.name.toLowerCase();
+        if (!OK_ATTRS.has(n)) el.removeAttribute(a.name);
+        else if (n === "src" || n === "href") el.setAttribute(n, urlOk(a.value, base));
+      }
+      if (tag === "a"){ el.setAttribute("target", "_blank"); el.setAttribute("rel", "noopener"); }
+    }
+  };
+  walk(root);
+  return root.innerHTML;
+}
+
 // ---------------------------------------------------------------- uploads
-const uploads = { queue: [], active: 0, done: 0, failed: 0, total: 0, bytes: 0, sent: 0, started: 0, items: [] };
-const MAX_PARALLEL = 3;
+// Files go up in 8 MB pieces. If the connection drops, psst asks the server how much
+// arrived and carries on from there. Picking the same file again later also resumes.
+const UP_CHUNK = 8 * 1024 * 1024, MAX_PARALLEL = 3;
+const uploads = { queue: [], active: 0, done: 0, failed: 0, total: 0, bytes: 0, sent: 0, started: 0 };
+function cyrb53(str, seed){
+  let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
+  for (let i = 0; i < str.length; i++){ const ch = str.charCodeAt(i); h1 = Math.imul(h1 ^ ch, 2654435761); h2 = Math.imul(h2 ^ ch, 1597334677); }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (h2 >>> 0).toString(16).padStart(8, "0") + (h1 >>> 0).toString(16).padStart(8, "0");
+}
 function enqueue(files){
   if (state.readOnly){ toast("Server is read-only"); return; }
   if (!files.length) return;
@@ -1854,10 +2381,12 @@ function enqueue(files){
   const dir = state.path;
   for (const {file, rel} of files){
     const el = document.createElement("div"); el.className = "up";
-    el.innerHTML = `<div class="n"><span></span><span>waiting</span></div><div class="bar2"><i></i></div>`;
+    el.innerHTML = `<div class="n"><span></span><span class="st">waiting</span></div><div class="bar2"><i></i></div>`;
     el.querySelector("span").textContent = rel;
     $("#upList").appendChild(el);
-    uploads.queue.push({file, rel, dir, el, loaded: 0});
+    const url = dir + rel.split("/").map(enc).join("/");
+    const key = [url, file.size, file.lastModified, file.name].join("|");
+    uploads.queue.push({file, rel, dir, el, url, id: cyrb53(key, 1) + cyrb53(key, 2), loaded: 0});
     uploads.total++; uploads.bytes += file.size;
   }
   $("#uploads").hidden = false; $("#uploads").classList.remove("min");
@@ -1866,24 +2395,72 @@ function enqueue(files){
 function pump(){
   while (uploads.active < MAX_PARALLEL && uploads.queue.length){
     const u = uploads.queue.shift(); uploads.active++;
+    runUpload(u).finally(() => { uploads.active--; pump(); updateTray(); scheduleRefresh(); });
+  }
+}
+const upStatus = (u, text) => { u.el.querySelector(".st").textContent = text; };
+function setLoaded(u, n){
+  uploads.sent += n - u.loaded; u.loaded = n;
+  const pct = u.file.size ? n / u.file.size : 1;
+  u.el.querySelector("i").style.width = (pct * 100) + "%";
+  upStatus(u, Math.floor(pct * 100) + "%");
+  updateTray();
+}
+async function uploadStatus(u){
+  try {
+    const r = await fetch(`/__psst/upload?id=${u.id}&target=${enc(u.url)}`, {cache: "no-store"});
+    return r.ok ? await r.json() : null;
+  } catch (e) { return null; }
+}
+function putChunk(u, start, end){
+  return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open("PUT", u.dir + u.rel.split("/").map(enc).join("/"));
-    const status = u.el.querySelector(".n span:last-child"), bar = u.el.querySelector("i");
-    xhr.upload.onprogress = ev => { uploads.sent += ev.loaded - u.loaded; u.loaded = ev.loaded; bar.style.width = (ev.loaded / (ev.total||1) * 100) + "%"; status.textContent = Math.floor(ev.loaded/(ev.total||1)*100) + "%"; updateTray(); };
-    xhr.onload = () => {
-      if (xhr.status === 201){
-        const res = JSON.parse(xhr.responseText);
-        u.el.classList.add("done"); bar.style.width = "100%"; status.textContent = fmtSize(u.file.size);
-        uploads.done++;
-        if (u.dir === state.path) state.flash.add(res.path.split("/")[0]);
-      } else fail(xhr.status === 403 ? "read-only" : "error " + xhr.status);
-      finish();
-    };
-    xhr.onerror = () => { fail("failed"); finish(); };
-    function fail(msg){ u.el.classList.add("err"); status.textContent = msg; uploads.failed++; }
-    function finish(){ uploads.sent += u.file.size - u.loaded; u.loaded = u.file.size; uploads.active--; pump(); updateTray(); scheduleRefresh(); }
-    status.textContent = "0%";
-    xhr.send(u.file);
+    xhr.open("PUT", u.url);
+    xhr.setRequestHeader("X-Psst-Upload", u.id);
+    xhr.setRequestHeader("X-Psst-Offset", String(start));
+    xhr.setRequestHeader("X-Psst-Total", String(u.file.size));
+    xhr.upload.onprogress = ev => setLoaded(u, start + ev.loaded);
+    xhr.onload = () => { let body = {}; try { body = JSON.parse(xhr.responseText); } catch (e) {} resolve({status: xhr.status, body}); };
+    xhr.onerror = xhr.ontimeout = xhr.onabort = () => reject(new Error("network"));
+    xhr.send(u.file.slice(start, end));
+  });
+}
+async function runUpload(u){
+  const size = u.file.size;
+  let offset = 0, tries = 0;
+  const st = await uploadStatus(u);
+  if (st && st.done) return finishOk(u, st);
+  if (st && st.received > 0){ offset = st.received; setLoaded(u, offset); upStatus(u, `resuming at ${Math.floor(offset / size * 100)}%`); }
+  for (;;){
+    try {
+      const res = await putChunk(u, offset, Math.min(offset + UP_CHUNK, size));
+      tries = 0;
+      if (res.status === 201) return finishOk(u, res.body);
+      if (res.status === 200 || res.status === 409){ offset = res.body.received || 0; setLoaded(u, offset); continue; }
+      return finishErr(u, res.status === 403 ? "read-only" : (res.body.error || "error " + res.status), false);
+    } catch (e) {
+      if (++tries > 40) return finishErr(u, "connection lost", true);
+      upStatus(u, "reconnecting…");
+      await sleep(Math.min(1000 * tries, 10000));
+      const s = await uploadStatus(u);
+      if (s && s.done) return finishOk(u, s);
+      if (s){ offset = s.received; setLoaded(u, offset); }
+    }
+  }
+}
+function finishOk(u, res){
+  setLoaded(u, u.file.size);
+  u.el.classList.add("done"); upStatus(u, fmtSize(u.file.size));
+  uploads.done++;
+  if (u.dir === state.path) state.flash.add(res.path.split("/")[0]);
+}
+function finishErr(u, msg, retry){
+  u.el.classList.add("err"); uploads.failed++;
+  const st = u.el.querySelector(".st"); st.textContent = msg + " ";
+  if (retry){
+    const b = document.createElement("button"); b.textContent = "Retry";
+    b.onclick = () => { u.el.classList.remove("err"); uploads.failed--; upStatus(u, "waiting"); uploads.queue.push(u); pump(); updateTray(); };
+    st.appendChild(b);
   }
 }
 let refreshTimer;
@@ -1891,7 +2468,7 @@ function scheduleRefresh(){ clearTimeout(refreshTimer); refreshTimer = setTimeou
 function updateTray(){
   const busy = uploads.active || uploads.queue.length, n = uploads.done + uploads.failed;
   const secs = (performance.now() - uploads.started) / 1000, rate = uploads.sent / Math.max(secs, .1);
-  let t = busy ? `Uploading ${Math.min(n+1, uploads.total)} of ${uploads.total}` : uploads.failed ? `${uploads.done} uploaded, ${uploads.failed} failed` : `${uploads.done} upload${uploads.done===1?"":"s"} complete`;
+  const t = busy ? `Uploading ${Math.min(n+1, uploads.total)} of ${uploads.total}` : uploads.failed ? `${uploads.done} uploaded, ${uploads.failed} failed` : `${plural(uploads.done, "upload")} complete`;
   const sub = busy ? `${fmtSize(uploads.sent)} of ${fmtSize(uploads.bytes)} · ${fmtSize(rate)}/s` : `${fmtSize(uploads.bytes)} in ${secs < 60 ? secs.toFixed(1)+" s" : Math.round(secs/60)+" min"}`;
   $("#upTitle").innerHTML = `${esc(t)}<small>${esc(sub)}</small>`;
 }
@@ -1917,7 +2494,7 @@ document.addEventListener("drop", async e => {
   if (state.readOnly) return;
   const items = [...e.dataTransfer.items].filter(i => i.kind === "file");
   const entries = items.map(i => i.webkitGetAsEntry && i.webkitGetAsEntry());
-  if (entries.every(Boolean)){
+  if (entries.length && entries.every(Boolean)){
     const out = [];
     await Promise.all(entries.map(en => walk(en, "", out)));
     enqueue(out);
@@ -1960,9 +2537,8 @@ document.addEventListener("paste", e => {
 $("#mkdirBtn").onclick = async () => {
   const name = prompt("New folder name");
   if (!name || !name.trim()) return;
-  const r = await fetch("/__psst/mkdir", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({path: state.path, name})});
-  const res = await r.json().catch(() => ({}));
-  if (r.ok){ state.flash.add(res.name); refresh(); } else toast(res.error || "Could not create folder");
+  try { const res = await api("mkdir", {path: state.path, name}); state.flash.add(res.name); refresh(); }
+  catch (err) { toast(err.message); }
 };
 
 // ---------------------------------------------------------------- clipboard
@@ -2018,21 +2594,20 @@ setInterval(() => { if (document.visibilityState === "visible") pollClip(); }, 2
 
 // ---------------------------------------------------------------- connect / QR
 $("#qrBtn").onclick = async () => {
-  const info = await fetch("/__psst/info").then(r => r.json()).catch(() => ({urls: []}));
+  const fresh = await fetch("/__psst/info").then(r => r.json()).catch(() => null);
+  if (fresh) info = fresh;
   const here = location.pathname;
   const urls = info.urls.length ? info.urls.map(u => u.replace(/\/$/, "") + here) : [location.href];
-  $("#qrBox").innerHTML = `<h2>Open on another device</h2><p>Scan with a phone camera, or type the address on another computer on the same network.</p>
+  openModal(`<h2>Open on another device</h2><p>Scan with a phone camera, or type the address on another computer on the same network.</p>
     <div class="qr"><img alt="QR code"><code></code></div>` +
     (urls.length > 1 ? `<p style="margin-bottom:6px">Other addresses (if the first doesn't work):</p><div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px">` +
       urls.map((u, i) => `<button class="btn" data-u="${i}">${esc(new URL(u).host)}</button>`).join("") + `</div>` : "") +
-    `<div style="text-align:right"><button class="btn" id="qrClose">Close</button></div>`;
-  const show = u => { $("#qrBox img").src = "/__psst/qr.svg?text=" + enc(u); $("#qrBox code").textContent = decodeURI(u); };
+    `<div class="mact"><button class="btn" id="qrClose">Close</button></div>`);
+  const show = u => { $("#modalBox img").src = "/__psst/qr.svg?text=" + enc(u); $("#modalBox code").textContent = decodeURI(u); };
   show(urls[0]);
-  $("#qrBox").querySelectorAll("[data-u]").forEach(b => b.onclick = () => show(urls[+b.dataset.u]));
-  $("#qrModal").classList.add("on");
-  $("#qrClose").onclick = () => $("#qrModal").classList.remove("on");
+  $("#modalBox").querySelectorAll("[data-u]").forEach(b => b.onclick = () => show(urls[+b.dataset.u]));
+  $("#qrClose").onclick = closeModal;
 };
-$("#qrModal").onclick = e => { if (e.target === $("#qrModal")) $("#qrModal").classList.remove("on"); };
 
 // ---------------------------------------------------------------- keyboard
 document.addEventListener("keydown", e => {
@@ -2044,18 +2619,26 @@ document.addEventListener("keydown", e => {
     return;
   }
   if (e.key === "Escape"){
-    if ($("#qrModal").classList.contains("on")) $("#qrModal").classList.remove("on");
+    if ($("#modal").classList.contains("on")) closeModal();
     else if ($("#clip").classList.contains("on")) closeClip();
     else if (typing) e.target.blur();
+    else if (state.selected.size) clearSelection();
     return;
   }
-  if (typing) return;
+  if (typing || $("#modal").classList.contains("on")) return;
   if (e.key === "/"){ e.preventDefault(); $("#filter").focus(); }
-  if (e.key === "Backspace" && state.path !== "/"){ const up = state.path.replace(/[^/]+\/$/, ""); load(up, true); }
+  else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a"){ e.preventDefault(); selectAll(); }
+  else if (e.key === "Delete" && state.selected.size) deleteSelected();
+  else if (e.key === "F2" && state.selected.size === 1){ e.preventDefault(); renameSelected(); }
+  else if (e.key === "Backspace" && state.path !== "/"){ load(state.path.replace(/[^/]+\/$/, ""), true); }
 });
 
-load(location.pathname, false);
-pollClip();
+(async () => {
+  const fresh = await fetch("/__psst/info").then(r => r.json()).catch(() => null);
+  if (fresh) info = fresh;
+  load(location.pathname, false);
+  pollClip();
+})();
 </script>
 </body>
 </html>
