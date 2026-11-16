@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "psst"
+version = "0.1.0"
+description = "A friendlier python -m http.server for moving files, images and text between devices"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = []
+
+[project.scripts]
+psst = "psst:main"
+
+[tool.setuptools]
+py-modules = ["psst"]
