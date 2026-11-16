@@ -10,12 +10,17 @@ as zip, and a shared text clipboard. Standard library only.
 
 import argparse
 import base64
+import collections
 import email.utils
+import io
 import json
 import mimetypes
 import os
+import re
 import secrets
+import shutil
 import socket
+import struct
 import sys
 import threading
 import time
@@ -23,10 +28,20 @@ import urllib.parse
 import zipfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-__version__ = "0.1.0"
+try:  # optional: with Pillow installed, every image type gets a real thumbnail
+    from PIL import Image, ImageOps
+except ImportError:
+    Image = None
+
+__version__ = "0.2.0"
 
 CHUNK = 1024 * 1024
 PART_PREFIX = ".psst-upload-"
+TRASH_DIR = ".psst-trash"
+TRASH_DAYS = 7
+STALE_PART_SECS = 2 * 86400
+UPLOAD_ID = re.compile(r"[0-9a-f]{16,64}")
+THUMB_SIZE = 400
 API = "/__psst/"
 MAX_CLIP_BYTES = 2 * 1024 * 1024
 MAX_CLIP_ITEMS = 50
@@ -170,6 +185,141 @@ class Clipboard:
             self.version += 1
 
 
+def is_hidden(name):
+    return name.startswith(PART_PREFIX) or name == TRASH_DIR
+
+
+class HTTPError(Exception):
+    def __init__(self, status, message):
+        super().__init__(message)
+        self.status = status
+        self.message = message
+
+
+# ---------------------------------------------------------------------------
+# Thumbnails
+# ---------------------------------------------------------------------------
+
+def exif_thumbnail(path):
+    """Return the small JPEG preview most cameras and phones embed in a photo, or None."""
+    try:
+        with open(path, "rb") as f:
+            head = f.read(128 * 1024)
+        if head[:2] != b"\xff\xd8":
+            return None
+        i = 2
+        while i + 4 <= len(head):
+            if head[i] != 0xFF:
+                return None
+            marker = head[i + 1]
+            if marker in (0xDA, 0xD9):  # image data starts: no EXIF block
+                return None
+            seglen = struct.unpack(">H", head[i + 2:i + 4])[0]
+            if marker == 0xE1 and head[i + 4:i + 10] == b"Exif\0\0":
+                return _exif_ifd1_jpeg(head[i + 10:i + 2 + seglen])
+            i += 2 + seglen
+    except (OSError, struct.error, IndexError, ValueError):
+        pass
+    return None
+
+
+def _exif_ifd1_jpeg(tiff):
+    endian = {b"II": "<", b"MM": ">"}.get(tiff[:2])
+    if not endian:
+        return None
+    u16 = lambda o: struct.unpack_from(endian + "H", tiff, o)[0]  # noqa: E731
+    u32 = lambda o: struct.unpack_from(endian + "I", tiff, o)[0]  # noqa: E731
+
+    def entries(off):
+        n = u16(off)
+        return [(u16(off + 2 + 12 * k), u16(off + 4 + 12 * k), off + 10 + 12 * k) for k in range(n)], u32(off + 2 + 12 * n)
+
+    ifd0, ifd1 = entries(u32(4))
+    orientation = next((u16(v) for tag, _, v in ifd0 if tag == 0x0112), 1)
+    if not ifd1:
+        return None
+    start = length = None
+    for tag, typ, v in entries(ifd1)[0]:
+        val = u16(v) if typ == 3 else u32(v)
+        if tag == 0x0201:
+            start = val
+        elif tag == 0x0202:
+            length = val
+    if not start or not length or tiff[start:start + 2] != b"\xff\xd8":
+        return None
+    thumb = tiff[start:start + length]
+    if orientation != 1:
+        # The embedded preview isn't rotated; give it its own EXIF orientation so browsers turn it.
+        tiff_hdr = b"MM\x00\x2a" + struct.pack(">IH", 8, 1) + struct.pack(">HHIHH", 0x0112, 3, 1, orientation, 0) + b"\0\0\0\0"
+        payload = b"Exif\0\0" + tiff_hdr
+        thumb = b"\xff\xd8\xff\xe1" + struct.pack(">H", len(payload) + 2) + payload + thumb[2:]
+    return thumb
+
+
+def make_thumbnail(path):
+    """Return (bytes, content type) for a small preview of an image, or None to use the original."""
+    ext = file_ext(path)
+    if Image is not None and ext not in ("svg", "gif", "ico") and os.path.getsize(path) > 150 * 1024:
+        try:
+            with Image.open(path) as im:
+                im.draft("RGB", (THUMB_SIZE, THUMB_SIZE))  # decode big JPEGs at reduced size: much faster
+                im = ImageOps.exif_transpose(im)
+                im.thumbnail((THUMB_SIZE, THUMB_SIZE))
+                buf = io.BytesIO()
+                if im.mode in ("RGBA", "LA") or (im.mode == "P" and "transparency" in im.info):
+                    im.convert("RGBA").save(buf, "PNG", optimize=True)
+                    return buf.getvalue(), "image/png"
+                im.convert("RGB").save(buf, "JPEG", quality=80)
+                return buf.getvalue(), "image/jpeg"
+        except Exception:
+            pass
+    if ext in ("jpg", "jpeg"):
+        data = exif_thumbnail(path)
+        if data:
+            return data, "image/jpeg"
+    return None
+
+
+class LRUCache:
+    def __init__(self, max_bytes):
+        self.lock = threading.Lock()
+        self.items = collections.OrderedDict()
+        self.size = 0
+        self.max_bytes = max_bytes
+
+    def get(self, key):
+        with self.lock:
+            if key in self.items:
+                self.items.move_to_end(key)
+                return self.items[key]
+        return None
+
+    def put(self, key, value):
+        with self.lock:
+            if key in self.items:
+                return
+            self.items[key] = value
+            self.size += len(value[0]) + 100
+            while self.size > self.max_bytes and self.items:
+                _, old = self.items.popitem(last=False)
+                self.size -= len(old[0]) + 100
+
+
+def purge_trash(root):
+    """Permanently delete trash batches older than TRASH_DAYS."""
+    tdir = os.path.join(root, TRASH_DIR)
+    try:
+        cutoff = time.time() - TRASH_DAYS * 86400
+        with os.scandir(tdir) as it:
+            for e in it:
+                if e.stat().st_mtime < cutoff:
+                    shutil.rmtree(e.path, ignore_errors=True)
+        if not os.listdir(tdir):
+            os.rmdir(tdir)
+    except OSError:
+        pass
+
+
 # ---------------------------------------------------------------------------
 # HTTP handler
 # ---------------------------------------------------------------------------
@@ -211,7 +361,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def log_request(self, code="-", size="-"):
         path = getattr(self, "path", "")
-        if path.startswith(API + "clip") and self.command == "GET":
+        if self.command == "GET" and path.startswith((API + "clip", API + "thumb", API + "upload", API + "info")):
+            return
+        if self.command == "PUT" and str(code) == "200":  # chunk of a resumable upload
             return
         if str(code) == "304":
             return
@@ -220,11 +372,13 @@ class Handler(BaseHTTPRequestHandler):
     def send_body(self, status, body, ctype, headers=None):
         if isinstance(body, str):
             body = body.encode("utf-8")
+        headers = headers or {}
         self.send_response(status)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "no-store")
-        for k, v in (headers or {}).items():
+        if "Cache-Control" not in headers:
+            self.send_header("Cache-Control", "no-store")
+        for k, v in headers.items():
             self.send_header(k, v)
         self.end_headers()
         if self.command != "HEAD":
@@ -281,6 +435,15 @@ class Handler(BaseHTTPRequestHandler):
             return None
         return self.rfile.read(length)
 
+    def copy_body(self, out, length):
+        remaining = length
+        while remaining:
+            chunk = self.rfile.read(min(CHUNK, remaining))
+            if not chunk:
+                raise ConnectionError("client disconnected")
+            out.write(chunk)
+            remaining -= len(chunk)
+
     # -- GET / HEAD --------------------------------------------------------
 
     def do_HEAD(self):
@@ -291,7 +454,10 @@ class Handler(BaseHTTPRequestHandler):
             return
         url = urllib.parse.urlsplit(self.path)
         if url.path.startswith(API):
-            return self.api_get(url)
+            try:
+                return self.api_get(url)
+            except HTTPError as e:
+                return self.fail(e.status, e.message)
         query = urllib.parse.parse_qs(url.query, keep_blank_values=True)
         fs = self.resolve(url.path)
         if fs is None or not os.path.exists(fs):
@@ -301,7 +467,7 @@ class Handler(BaseHTTPRequestHandler):
                 target = url.path + "/" + ("?" + url.query if url.query else "")
                 return self.send_body(301, "", "text/plain", {"Location": target})
             if "zip" in query:
-                return self.send_zip(fs)
+                return self.send_zip(self.zip_name(fs) + ".zip", [(fs, self.zip_name(fs))])
             if "json" in query:
                 return self.send_listing(fs, url.path)
             if "text/html" in self.headers.get("Accept", ""):
@@ -316,9 +482,16 @@ class Handler(BaseHTTPRequestHandler):
 
     def list_dir(self, fs):
         entries = []
+        now = time.time()
         with os.scandir(fs) as it:
             for e in it:
-                if e.name.startswith(PART_PREFIX):
+                if is_hidden(e.name):
+                    if e.name.startswith(PART_PREFIX):
+                        try:  # abandoned resumable uploads
+                            if now - e.stat().st_mtime > STALE_PART_SECS:
+                                os.remove(e.path)
+                        except OSError:
+                            pass
                     continue
                 try:
                     is_dir = e.is_dir()
@@ -403,98 +576,279 @@ class Handler(BaseHTTPRequestHandler):
                     self.wfile.write(chunk)
                     remaining -= len(chunk)
 
-    def send_zip(self, fs):
-        name = os.path.basename(os.path.normpath(fs)) or "files"
+    def zip_name(self, fs):
         if os.path.normcase(os.path.realpath(fs)) == os.path.normcase(self.cfg.root):
-            name = os.path.basename(self.cfg.root) or "files"
+            return os.path.basename(self.cfg.root) or "files"
+        return os.path.basename(os.path.normpath(fs)) or "files"
+
+    def send_zip(self, zip_name, entries):
+        """Stream a zip of [(path, name inside zip)] without building it on disk first."""
         self.send_response(200)
         self.send_header("Content-Type", "application/zip")
-        self.send_header("Content-Disposition", content_disposition(name + ".zip", True))
+        self.send_header("Content-Disposition", content_disposition(zip_name, True))
         self.send_header("Connection", "close")
         self.end_headers()
         self.close_connection = True
         if self.command == "HEAD":
             return
         with zipfile.ZipFile(_Writer(self.wfile), "w", zipfile.ZIP_STORED, allowZip64=True) as zf:
-            for dirpath, dirnames, filenames in os.walk(fs):
-                dirnames.sort()
-                rel = os.path.relpath(dirpath, fs)
-                arc_dir = name if rel == "." else name + "/" + rel.replace(os.sep, "/")
-                files = sorted(f for f in filenames if not f.startswith(PART_PREFIX))
-                if not files and not dirnames:
-                    zf.writestr(arc_dir + "/", b"")
-                for fn in files:
-                    full = os.path.join(dirpath, fn)
+            for fs, arc in entries:
+                if not os.path.isdir(fs):
                     try:
-                        zf.write(full, arc_dir + "/" + fn)
+                        zf.write(fs, arc)
                     except OSError:
-                        continue
-        self.log_message("zip %s done", name)
+                        pass
+                    continue
+                for dirpath, dirnames, filenames in os.walk(fs):
+                    dirnames[:] = sorted(d for d in dirnames if not is_hidden(d))
+                    rel = os.path.relpath(dirpath, fs)
+                    arc_dir = arc if rel == "." else arc + "/" + rel.replace(os.sep, "/")
+                    files = sorted(f for f in filenames if not is_hidden(f))
+                    if not files and not dirnames:
+                        zf.writestr(arc_dir + "/", b"")
+                    for fn in files:
+                        try:
+                            zf.write(os.path.join(dirpath, fn), arc_dir + "/" + fn)
+                        except OSError:
+                            continue
+        self.log_message("zip %s done", zip_name)
 
     # -- API ---------------------------------------------------------------
 
     def api_get(self, url):
         route = url.path[len(API):]
         query = urllib.parse.parse_qs(url.query)
+        arg = lambda k: query.get(k, [""])[0]  # noqa: E731
         if route == "info":
             return self.send_json(200, {
                 "version": __version__,
                 "readOnly": self.cfg.read_only,
                 "urls": self.cfg.urls,
                 "hostname": socket.gethostname(),
+                "thumbs": "pillow" if Image is not None else "exif",
             })
         if route == "clip":
             version, items = self.cfg.clipboard.snapshot()
-            if query.get("v", [""])[0] == str(version):
+            if arg("v") == str(version):
                 return self.send_json(200, {"v": version})
             return self.send_json(200, {"v": version, "items": items})
         if route == "qr.svg":
-            text = query.get("text", [""])[0]
             try:
-                svg = qr_svg(qr_encode(text.encode("utf-8")))
+                svg = qr_svg(qr_encode(arg("text").encode("utf-8")))
             except ValueError as e:
-                return self.fail(400, str(e))
+                raise HTTPError(400, str(e))
             return self.send_body(200, svg, "image/svg+xml")
-        self.fail(404, "unknown endpoint")
+        if route == "thumb":
+            return self.send_thumb(arg("path"))
+        if route == "upload":
+            # How much of a resumable upload the server already has.
+            upload_id = arg("id")
+            done = self.server.finished.get(upload_id)
+            if done:
+                return self.send_json(200, done)
+            target_dir, parts = self.upload_target(arg("target"))
+            part = os.path.join(target_dir, PART_PREFIX + upload_id + ".part")
+            have = os.path.getsize(part) if UPLOAD_ID.fullmatch(upload_id) and os.path.isfile(part) else 0
+            return self.send_json(200, {"received": have})
+        raise HTTPError(404, "unknown endpoint")
+
+    def send_thumb(self, urlpath):
+        fs = self.resolve(urlpath)
+        if fs is None or not os.path.isfile(fs):
+            raise HTTPError(404, "not found")
+        st = os.stat(fs)
+        key = (fs, st.st_mtime_ns, st.st_size)
+        hit = self.server.thumbs.get(key)
+        if hit is None:
+            hit = make_thumbnail(fs) or (b"", "")
+            self.server.thumbs.put(key, hit)
+        data, ctype = hit
+        if not data:
+            return self.send_file(fs)
+        etag = f'"t{st.st_mtime_ns:x}-{st.st_size:x}"'
+        if self.headers.get("If-None-Match") == etag:
+            self.send_response(304)
+            self.send_header("ETag", etag)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        self.send_body(200, data, ctype, {"Cache-Control": "max-age=604800", "ETag": etag})
 
     def do_POST(self):
         if not self.check_auth():
             return
         url = urllib.parse.urlsplit(self.path)
         route = url.path[len(API):] if url.path.startswith(API) else None
-        if route == "clip":
-            body = self.read_body(MAX_CLIP_BYTES)
-            try:
-                text = json.loads(body)["text"] if body else ""
-            except (ValueError, KeyError, TypeError):
-                text = ""
-            if not isinstance(text, str) or not text.strip():
-                return self.fail(400, "empty or oversized text")
-            item = self.cfg.clipboard.add(text, self.client_address[0])
-            self.log_message("clipboard + %d chars", len(text))
-            return self.send_json(201, item)
-        if route == "mkdir":
+        try:
+            if route == "clip":
+                return self.post_clip()
+            if route == "zip":
+                return self.post_zip()
+            ops = {"mkdir": self.op_mkdir, "delete": self.op_delete, "restore": self.op_restore,
+                   "rename": self.op_rename, "move": self.op_move}
+            if route not in ops:
+                raise HTTPError(404, "unknown endpoint")
             if self.cfg.read_only:
-                return self.fail(403, "server is read-only")
-            body = self.read_body(64 * 1024)
+                raise HTTPError(403, "server is read-only")
+            body = self.read_body(1024 * 1024)
             try:
                 data = json.loads(body)
-                parent = self.resolve(data["path"])
-                name = sanitize_part(data["name"].strip())
-            except (ValueError, KeyError, TypeError, AttributeError):
-                return self.fail(400, "bad request")
-            if parent is None or name is None or not os.path.isdir(parent):
-                return self.fail(400, "invalid folder name")
-            target = os.path.join(parent, name)
-            if os.path.exists(target):
-                return self.fail(409, "already exists")
+            except (TypeError, ValueError):
+                data = None
+            if not isinstance(data, dict):
+                raise HTTPError(400, "expected a JSON object")
+            result = ops[route](data)
+            self.send_json(200, result)
+        except HTTPError as e:
+            self.fail(e.status, e.message)
+
+    def post_clip(self):
+        body = self.read_body(MAX_CLIP_BYTES)
+        try:
+            text = json.loads(body)["text"] if body else ""
+        except (ValueError, KeyError, TypeError):
+            text = ""
+        if not isinstance(text, str) or not text.strip():
+            raise HTTPError(400, "empty or oversized text")
+        item = self.cfg.clipboard.add(text, self.client_address[0])
+        self.log_message("clipboard + %d chars", len(text))
+        self.send_json(201, item)
+
+    def post_zip(self):
+        """Zip several items from one folder. Sent as a form so the browser downloads the reply."""
+        body = self.read_body(4 * 1024 * 1024)
+        if body is None:
+            raise HTTPError(400, "request too large")
+        form = urllib.parse.parse_qs(body.decode("utf-8", "replace"))
+        folder, items = self.op_items({"path": form.get("path", [""])[0], "names": form.get("name", [])})
+        if len(items) == 1:
+            name = items[0][0]
+        else:
+            name = f"{self.zip_name(folder)} ({len(items)} items)"
+        self.send_zip(name + ".zip", [(fs, n) for n, fs in items])
+
+    def op_folder(self, urlpath):
+        folder = self.resolve(urlpath if isinstance(urlpath, str) else "")
+        if folder is None or not os.path.isdir(folder):
+            raise HTTPError(404, "folder not found")
+        return folder
+
+    def op_items(self, data):
+        """Resolve {"path": folder URL, "names": [...]} to (folder, [(name, path)])."""
+        folder = self.op_folder(data.get("path"))
+        names = data.get("names")
+        if not isinstance(names, list) or not names:
+            raise HTTPError(400, "nothing selected")
+        items = []
+        for n in names:
+            if (not isinstance(n, str) or n in ("", ".", "..") or is_hidden(n)
+                    or any(c in n for c in "/\\\0")):
+                raise HTTPError(400, f"invalid name: {n}")
+            fs = os.path.join(folder, n)
+            if not os.path.lexists(fs):
+                raise HTTPError(404, f"not found: {n}")
+            items.append((n, fs))
+        return folder, items
+
+    def op_mkdir(self, data):
+        parent = self.op_folder(data.get("path"))
+        name = sanitize_part(str(data.get("name", "")).strip())
+        if name is None or is_hidden(name):
+            raise HTTPError(400, "invalid folder name")
+        target = os.path.join(parent, name)
+        if os.path.exists(target):
+            raise HTTPError(409, "already exists")
+        try:
+            os.mkdir(target)
+        except OSError as e:
+            raise HTTPError(500, str(e))
+        self.log_message("mkdir %s", name)
+        return {"name": name}
+
+    def op_delete(self, data):
+        """Move items into the hidden trash folder so they can be restored for TRASH_DAYS."""
+        _, items = self.op_items(data)
+        batch = time.strftime("%Y%m%d-%H%M%S-") + secrets.token_hex(3)
+        bdir = os.path.join(self.cfg.root, TRASH_DIR, batch)
+        os.makedirs(bdir)
+        moved, errors = [], []
+        for n, fs in items:
             try:
-                os.mkdir(target)
+                shutil.move(fs, os.path.join(bdir, n))
+                moved.append(n)
             except OSError as e:
-                return self.fail(500, str(e))
-            self.log_message("mkdir %s", name)
-            return self.send_json(201, {"name": name})
-        self.fail(404, "unknown endpoint")
+                errors.append(f"{n}: {e.strerror or e}")
+        with open(os.path.join(bdir, ".psst-meta.json"), "w", encoding="utf-8") as f:
+            json.dump({"path": data["path"], "names": moved}, f)
+        self.log_message("delete %s", ", ".join(moved) or "-")
+        purge_trash(self.cfg.root)
+        if not moved:
+            raise HTTPError(409, "; ".join(errors))
+        return {"trash": batch, "count": len(moved), "errors": errors}
+
+    def op_restore(self, data):
+        batch = data.get("trash")
+        if not isinstance(batch, str) or not re.fullmatch(r"[\w-]+", batch):
+            raise HTTPError(400, "bad trash id")
+        bdir = os.path.join(self.cfg.root, TRASH_DIR, batch)
+        try:
+            with open(os.path.join(bdir, ".psst-meta.json"), encoding="utf-8") as f:
+                meta = json.load(f)
+        except (OSError, ValueError):
+            raise HTTPError(404, "already restored or emptied")
+        folder = self.resolve(meta.get("path", "")) or self.cfg.root
+        os.makedirs(folder, exist_ok=True)
+        restored = []
+        for n in meta.get("names", []):
+            src = os.path.join(bdir, n)
+            if os.path.lexists(src):
+                with self.server.upload_lock:
+                    final = unique_name(folder, n)
+                    shutil.move(src, os.path.join(folder, final))
+                restored.append(final)
+        shutil.rmtree(bdir, ignore_errors=True)
+        self.log_message("restore %s", ", ".join(restored) or "-")
+        return {"names": restored}
+
+    def op_rename(self, data):
+        folder, items = self.op_items({"path": data.get("path"), "names": [data.get("from")]})
+        old, src = items[0]
+        new = sanitize_part(str(data.get("to", "")).strip())
+        if new is None or is_hidden(new):
+            raise HTTPError(400, "invalid name")
+        dest = os.path.join(folder, new)
+        if os.path.lexists(dest) and os.path.normcase(dest) != os.path.normcase(src):
+            raise HTTPError(409, f"{new} already exists")
+        try:
+            os.rename(src, dest)
+        except OSError as e:
+            raise HTTPError(409, e.strerror or str(e))
+        self.log_message("rename %s -> %s", old, new)
+        return {"name": new}
+
+    def op_move(self, data):
+        folder, items = self.op_items(data)
+        dest = self.op_folder(data.get("dest"))
+        real_dest = os.path.normcase(os.path.realpath(dest))
+        if real_dest == os.path.normcase(os.path.realpath(folder)):
+            raise HTTPError(400, "already in that folder")
+        moved, errors = [], []
+        for n, fs in items:
+            real_src = os.path.normcase(os.path.realpath(fs))
+            if real_dest == real_src or real_dest.startswith(real_src + os.sep):
+                errors.append(f"can't move {n} into itself")
+                continue
+            try:
+                with self.server.upload_lock:
+                    final = unique_name(dest, n)
+                    shutil.move(fs, os.path.join(dest, final))
+                moved.append(final)
+            except OSError as e:
+                errors.append(f"{n}: {e.strerror or e}")
+        self.log_message("move %s", ", ".join(moved) or "-")
+        if not moved:
+            raise HTTPError(409, "; ".join(errors))
+        return {"names": moved, "errors": errors}
 
     def do_DELETE(self):
         if not self.check_auth():
@@ -509,50 +863,64 @@ class Handler(BaseHTTPRequestHandler):
             except ValueError:
                 return self.fail(400, "bad id")
             return self.send_json(200, {"ok": True})
-        self.fail(405, "deleting files is not supported")
+        self.fail(405, "use POST /__psst/delete")
 
     # -- uploads -----------------------------------------------------------
 
-    def do_PUT(self):
-        """Upload raw request body to the URL path. Works with `curl -T file URL`."""
-        if not self.check_auth():
-            return
-        if self.cfg.read_only:
-            return self.fail(403, "server is read-only")
-        url = urllib.parse.urlsplit(self.path)
-        if url.path.startswith(API):
-            return self.fail(404, "unknown endpoint")
-        try:
-            length = int(self.headers["Content-Length"])
-        except (TypeError, ValueError):
-            return self.fail(411, "Content-Length required")
-        raw_parts = self.url_parts(url.path)
-        if not raw_parts or url.path.endswith("/"):
-            return self.fail(400, "upload URL must end with a file name")
+    def upload_target(self, urlpath):
+        """Map an upload URL to (folder, sanitized path parts). The folder may not exist yet."""
+        raw_parts = self.url_parts(urlpath)
+        if not raw_parts or urlpath.endswith("/"):
+            raise HTTPError(400, "upload URL must end with a file name")
         parts = [sanitize_part(p) for p in raw_parts]
-        if None in parts:
-            return self.fail(400, "invalid path")
+        if None in parts or any(is_hidden(p) for p in parts):
+            raise HTTPError(400, "invalid path")
         target_dir = os.path.join(self.cfg.root, *parts[:-1])
         if not self.within_root(target_dir):
-            return self.fail(403, "outside shared folder")
+            raise HTTPError(403, "outside shared folder")
+        return target_dir, parts
+
+    def finalize_upload(self, tmp, target_dir, name):
+        with self.server.upload_lock:
+            final = unique_name(target_dir, name)
+            os.replace(tmp, os.path.join(target_dir, final))
+        return final
+
+    def do_PUT(self):
+        """Upload the request body to the URL path. Works with `curl -T file URL`.
+
+        Resumable uploads send the file in pieces with X-Psst-Upload (an id the
+        client picks), X-Psst-Offset and X-Psst-Total headers.
+        """
+        if not self.check_auth():
+            return
         try:
-            os.makedirs(target_dir, exist_ok=True)
-        except OSError as e:
-            return self.fail(409, f"cannot create folder: {e}")
+            if self.cfg.read_only:
+                raise HTTPError(403, "server is read-only")
+            url = urllib.parse.urlsplit(self.path)
+            if url.path.startswith(API):
+                raise HTTPError(404, "unknown endpoint")
+            try:
+                length = int(self.headers["Content-Length"])
+            except (TypeError, ValueError):
+                raise HTTPError(411, "Content-Length required")
+            target_dir, parts = self.upload_target(url.path)
+            try:
+                os.makedirs(target_dir, exist_ok=True)
+            except OSError as e:
+                raise HTTPError(409, f"cannot create folder: {e}")
+            upload_id = self.headers.get("X-Psst-Upload")
+            if upload_id is not None:
+                return self.put_chunk(target_dir, parts, upload_id, length)
+        except HTTPError as e:
+            return self.fail(e.status, e.message)
+
         tmp = os.path.join(target_dir, PART_PREFIX + secrets.token_hex(6) + ".part")
         started = time.time()
         try:
             with open(tmp, "wb") as out:
-                remaining = length
-                while remaining:
-                    chunk = self.rfile.read(min(CHUNK, remaining))
-                    if not chunk:
-                        raise ConnectionError("client disconnected")
-                    out.write(chunk)
-                    remaining -= len(chunk)
-            with self.server.upload_lock:
-                final = unique_name(target_dir, parts[-1])
-                os.replace(tmp, os.path.join(target_dir, final))
+                self.copy_body(out, length)
+            final = self.finalize_upload(tmp, target_dir, parts[-1])
         except BaseException:
             try:
                 os.remove(tmp)
@@ -560,10 +928,47 @@ class Handler(BaseHTTPRequestHandler):
                 pass
             self.close_connection = True
             raise
+        self.uploaded(parts, final, length, started)
+        self.send_json(201, {"name": final, "path": "/".join(parts[:-1] + [final]), "size": length})
+
+    def put_chunk(self, target_dir, parts, upload_id, length):
+        try:
+            offset = int(self.headers["X-Psst-Offset"])
+            total = int(self.headers["X-Psst-Total"])
+        except (TypeError, ValueError):
+            raise HTTPError(400, "missing X-Psst-Offset or X-Psst-Total")
+        if not UPLOAD_ID.fullmatch(upload_id) or offset < 0 or offset + length > total:
+            raise HTTPError(400, "bad upload chunk")
+        done = self.server.finished.get(upload_id)
+        if done:  # finished earlier, but the client never saw the reply
+            self.close_connection = True
+            return self.send_json(201, done)
+        part = os.path.join(target_dir, PART_PREFIX + upload_id + ".part")
+        with self.server.part_lock(part):
+            have = os.path.getsize(part) if os.path.exists(part) else 0
+            if offset != have:
+                self.close_connection = True
+                return self.send_json(409, {"received": have})
+            if offset == 0:
+                self.server.upload_started[upload_id] = time.time()
+            # If the connection drops mid-chunk, the bytes already written stay in the
+            # .part file and the client resumes from there.
+            with open(part, "ab") as out:
+                self.copy_body(out, length)
+            have += length
+            if have < total:
+                return self.send_json(200, {"received": have})
+            final = self.finalize_upload(part, target_dir, parts[-1])
+        result = {"name": final, "path": "/".join(parts[:-1] + [final]), "size": total,
+                  "received": total, "done": True}
+        self.server.remember_finished(upload_id, result)
+        self.uploaded(parts, final, total, self.server.upload_started.pop(upload_id, time.time()))
+        self.send_json(201, result)
+
+    def uploaded(self, parts, final, size, started):
         secs = max(time.time() - started, 0.001)
         rel = "/".join(parts[:-1] + [final])
-        self.log_message("upload %s (%s, %s/s)", rel, human_size(length), human_size(length / secs))
-        self.send_json(201, {"name": final, "path": rel, "size": length})
+        self.log_message("upload %s (%s, %s/s)", rel, human_size(size), human_size(size / secs))
 
 
 def human_size(n):
@@ -582,7 +987,21 @@ class Server(ThreadingHTTPServer):
     def __init__(self, addr, cfg):
         self.cfg = cfg
         self.upload_lock = threading.Lock()
+        self.part_locks = {}
+        self.finished = collections.OrderedDict()
+        self.upload_started = {}
+        self.thumbs = LRUCache(64 * 1024 * 1024)
         super().__init__(addr, Handler)
+
+    def part_lock(self, key):
+        with self.upload_lock:
+            return self.part_locks.setdefault(key, threading.Lock())
+
+    def remember_finished(self, upload_id, result):
+        with self.upload_lock:
+            self.finished[upload_id] = result
+            while len(self.finished) > 2000:
+                self.finished.popitem(last=False)
 
 
 # ---------------------------------------------------------------------------
@@ -938,6 +1357,7 @@ def main(argv=None):
     cfg.read_only = args.read_only
     cfg.password = args.password or os.environ.get("PSST_PASSWORD") or None
     cfg.clipboard = Clipboard()
+    purge_trash(root)
 
     ports = [args.port] if args.port else range(8000, 8020)
     server = None
@@ -966,6 +1386,8 @@ def main(argv=None):
     mode = "read-only" if cfg.read_only else "uploads enabled"
     if cfg.password:
         mode += ", password protected"
+    if Image is not None:
+        mode += ", Pillow thumbnails"
     print(f"  {mode}\n")
     if local:
         print(f"  Local:    {local}")
