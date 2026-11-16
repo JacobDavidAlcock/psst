@@ -1,6 +1,10 @@
-# psst
+<p align="center">
+  <img src="assets/psst.png" alt="Two grumpy gnomes sitting cross-legged, one with a laptop and one with a phone, passing a picture file along a tin-can telephone" width="560">
+</p>
 
-*psst... want some files?*
+<h1 align="center">psst</h1>
+
+<p align="center"><em>psst... want some files?</em></p>
 
 psst moves files, photos and text between your computers and phone over your home network. It works like `python -m http.server`, with a web page you can upload to, previews of what you're sharing, and a clipboard every device can see.
 
